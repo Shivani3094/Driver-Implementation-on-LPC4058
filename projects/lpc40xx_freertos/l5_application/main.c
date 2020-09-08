@@ -1,6 +1,7 @@
 #include <stdio.h>
 
 #include "FreeRTOS.h"
+#include "FreeRTOSConfig.h"
 #include "task.h"
 
 #include "board_io.h"
@@ -14,12 +15,42 @@ static void create_uart_task(void);
 static void blink_task(void *params);
 static void uart_task(void *params);
 
+// Create 2 tasks for Lab 1
+static void task_one(void *task_param);
+static void task_two(void *task_param);
+
 int main(void) {
+
+  puts("Starting RTOS\n");
+
+/* Lab1: FREERTOS TASKS.
+   * Uncomment the following code as per requirement. 
+   * In case of equal prioirty tasks comment the delay in task definition present at the end of main.c file.
+   */
+
+  ///*
+  // EQUAL PRIORITY: Both tasks have same Priority
+  xTaskCreate(task_one, "T1", 4096 / sizeof(void *), ((void *)NULL), 1, NULL);
+  xTaskCreate(task_two, "T2", 4096 / sizeof(void *), ((void *)NULL), 1, NULL);
+  //*/
+
+  /*
+  // UNEQUAL PRIORITY: Task 1 has higher Priority than Task 2
+  xTaskCreate(task_one, "T1", 4096 / sizeof(void *), ((void *)NULL), 2, NULL);
+  xTaskCreate(task_two, "T2", 4096 / sizeof(void *), ((void *)NULL), 1, NULL);
+  */
+
+  /*
+  // UNEQUAL PRIORITY: Task 2 has higher Priority than Task 1
+  xTaskCreate(task_one, "T1", 4096 / sizeof(void *), ((void *)NULL), 1, NULL);
+  xTaskCreate(task_two, "T2", 4096 / sizeof(void *), ((void *)NULL), 2, NULL);
+  */
+
+  vTaskStartScheduler(); // This function never returns unless RTOS scheduler runs out of memory and fails
+
+  // The following two tasks are moved after the vTaskStartScheduler to avoid any interference in the above two tasks.
   create_blinky_tasks();
   create_uart_task();
-
-  puts("Starting RTOS");
-  vTaskStartScheduler(); // This function never returns unless RTOS scheduler runs out of memory and fails
 
   return 0;
 }
@@ -38,7 +69,6 @@ static void create_blinky_tasks(void) {
 
   xTaskCreate(blink_task, "led0", configMINIMAL_STACK_SIZE, (void *)&led0, PRIORITY_LOW, NULL);
   xTaskCreate(blink_task, "led1", configMINIMAL_STACK_SIZE, (void *)&led1, PRIORITY_LOW, NULL);
-  printf("Hello World!\n");
 #else
   const bool run_1000hz = true;
   const size_t stack_size_bytes = 2048 / sizeof(void *); // RTOS stack size is in terms of 32-bits for ARM M4 32-bit CPU
@@ -97,5 +127,30 @@ static void uart_task(void *params) {
     ticks = xTaskGetTickCount();
     printf("This is a more efficient printf ... finished in");
     printf(" %lu ticks\n\n", (xTaskGetTickCount() - ticks));
+  }
+}
+static void task_one(void *task_param) {
+  while (true) {
+
+    fprintf(stderr, "AAAAAAAAAAAA");
+
+    /*
+    //Uncomment in case of Unequal Priority
+    // Sleep for 100ms
+    vTaskDelay(100);
+    */
+  }
+}
+
+static void task_two(void *task_param) {
+  while (true) {
+    fprintf(stderr, "bbbbbbbbbbbb");
+
+    /*
+    //Uncomment in case of Unequal Priority
+    // Sleep for 100ms
+    vTaskDelay(100);
+    */
+
   }
 }
