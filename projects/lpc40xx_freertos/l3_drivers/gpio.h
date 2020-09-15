@@ -1,5 +1,6 @@
 #pragma once
 
+#include "mpu_wrappers.h"
 #include <stdbool.h>
 #include <stdint.h>
 
