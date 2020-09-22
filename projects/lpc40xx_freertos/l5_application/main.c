@@ -32,9 +32,11 @@ void pin30_isr(void);
 void pin29_isr(void);
 static SemaphoreHandle_t switch29_signal;
 static SemaphoreHandle_t switch30_signal;
-void Task(void *p);
-gpio_s led_sw29 = {1, 18};
-gpio_s led_sw30 = {1, 24};
+void Task30(void *p);
+void Task29(void *p);
+
+static gpio_s led_sw29 = {1, 18};
+static gpio_s led_sw30 = {1, 24};
 
 int main(void) {
 
@@ -52,7 +54,8 @@ int main(void) {
   lpc_peripheral__enable_interrupt(LPC_PERIPHERAL__GPIO, gpio0__interrupt_dispatcher, NULL);
   NVIC_EnableIRQ(GPIO_IRQn);
 
-  xTaskCreate(Task, "Blink LED", (512U * 4) / sizeof(void *), NULL, PRIORITY_LOW, NULL);
+  xTaskCreate(Task29, "Blink LED", 2048 / sizeof(void *), NULL, PRIORITY_LOW, NULL);
+  xTaskCreate(Task30, "Blink LED", 2048 / sizeof(void *), NULL, PRIORITY_LOW, NULL);
   /************ END of PART 2*********************/
 
   puts("Starting RTOS");
@@ -187,28 +190,38 @@ void blinkLed_task(void *p) {
 
 /*******************PART 2*********************/
 
-void Task(void *p) {}
-void pin30_isr(void) {
-  fprintf(stderr, "Entered ISR due to Pin 30.\n ");
+void Task29(void *p) {
 
   while (1) {
-    xSemaphoreTake(switch30_signal, portMAX_DELAY);
-    gpio__set(led_sw30);
-    delay__ms(100);
-    gpio__reset(led_sw30);
-    delay__ms(100);
+    if (xSemaphoreTakeFromISR(switch29_signal, NULL)) {
+      gpio__set(led_sw29);
+      delay__ms(100);
+      gpio__reset(led_sw29);
+      delay__ms(100);
+    }
   }
+}
+
+void Task30(void *p) {
+
+  while (1) {
+    if (xSemaphoreTakeFromISR(switch30_signal, NULL)) {
+      gpio__set(led_sw30);
+      delay__ms(100);
+      gpio__reset(led_sw30);
+      delay__ms(100);
+    }
+  }
+}
+
+void pin30_isr(void) {
+  fprintf(stderr, "Entered ISR due to Pin 30.\n ");
+  xSemaphoreGiveFromISR(switch30_signal, NULL);
 }
 
 void pin29_isr(void) {
   fprintf(stderr, "Entered ISR due to pin 29.\n ");
-  while (1) {
-    xSemaphoreTake(switch29_signal, portMAX_DELAY);
-    gpio__set(led_sw29);
-    delay__ms(100);
-    gpio__reset(led_sw29);
-    delay__ms(100);
-  }
+  xSemaphoreGiveFromISR(switch29_signal, NULL);
 }
 
 /************END of PART 2*********************/

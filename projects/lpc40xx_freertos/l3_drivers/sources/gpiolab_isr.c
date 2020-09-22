@@ -1,7 +1,6 @@
 #include "gpiolab_isr.h"
 //#include "gpio.h"
 #include "lpc40xx.h"
-
 #include <stdint.h>
 #include <stdio.h>
 
@@ -64,7 +63,6 @@ void gpio0__attach_interrupt(uint32_t pin, gpio_interrupt_e interrupt_type, func
 
 void gpio0__interrupt_dispatcher(void) {
 
-  // Check which pin generated the interrupt
   gpio_s pin_that_generated_interrupt;
   int i = 0;
 
@@ -78,9 +76,7 @@ void gpio0__interrupt_dispatcher(void) {
 
   function_pointer_t attached_user_handler = gpio0_callbacks[pin_that_generated_interrupt.pin_number];
   fprintf(stderr, "Address of attached_user_handler = %p  ", attached_user_handler);
-
   attached_user_handler();
-
   clear_pin_interrupt(pin_that_generated_interrupt);
 }
 
