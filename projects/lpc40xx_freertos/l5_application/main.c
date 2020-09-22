@@ -1,25 +1,61 @@
 #include <stdio.h>
 
 #include "FreeRTOS.h"
-#include "task.h"
-
 #include "board_io.h"
 #include "common_macros.h"
+#include "delay.h"
 #include "gpio.h"
+#include "gpiolab_isr.h"
+#include "lpc40xx.h"
+#include "lpc_peripherals.h"
 #include "periodic_scheduler.h"
+#include "semphr.h"
 #include "sj2_cli.h"
+#include "task.h"
 
 static void create_blinky_tasks(void);
 static void create_uart_task(void);
 static void blink_task(void *params);
 static void uart_task(void *params);
 
+/************ PART 1*********************/
+static void gpio_interrupt(void);
+void config_gpio_interrupt(void);
+void sleep_on_sem_task(void *p);
+static void clear_gpio_interrupt(void);
+void blinkLed_task(void *p);
+
+static SemaphoreHandle_t switch_pressed_signal;
+
+/************ PART 2*********************/
+void pin30_isr(void);
+void pin29_isr(void);
+// void CheckButtonPress_task(void *p);
+// static SemaphoreHandle_t switch_signal;
+
 int main(void) {
-  create_blinky_tasks();
-  create_uart_task();
+
+  /*************** PART 1*************************/
+  switch_pressed_signal = xSemaphoreCreateBinary();
+  config_gpio_interrupt();
+  NVIC_EnableIRQ(GPIO_IRQn);
+  xTaskCreate(sleep_on_sem_task, "Semaphore", (512U * 4) / sizeof(void *), NULL, PRIORITY_LOW, NULL);
+  xTaskCreate(blinkLed_task, "Blink LED", (512U * 4) / sizeof(void *), NULL, PRIORITY_LOW, NULL);
+  /************END of PART 1*********************/
 
   puts("Starting RTOS");
   vTaskStartScheduler(); // This function never returns unless RTOS scheduler runs out of memory and fails
+
+  /***************** PART 2*********************/
+  LPC_GPIO0->DIR &= ~(1 << 29);
+  LPC_GPIO0->DIR &= ~(1 << 30);
+  gpio0__attach_interrupt(30, GPIO_INTR__RISING_EDGE, pin30_isr);
+  lpc_peripheral__enable_interrupt(LPC_PERIPHERAL__GPIO, gpio0__interrupt_dispatcher, NULL);
+  NVIC_EnableIRQ(GPIO_IRQn);
+  /************ END of PART 2*********************/
+
+  create_uart_task();
+  create_blinky_tasks();
 
   return 0;
 }
@@ -28,10 +64,13 @@ static void create_blinky_tasks(void) {
   /**
    * Use '#if (1)' if you wish to observe how two tasks can blink LEDs
    * Use '#if (0)' if you wish to use the 'periodic_scheduler.h' that will spawn 4 periodic tasks, one for each LED
+
    */
 #if (1)
+
   // These variables should not go out of scope because the 'blink_task' will reference this memory
   static gpio_s led0, led1;
+  create_blinky_tasks();
 
   led0 = board_io__get_led0();
   led1 = board_io__get_led1();
@@ -98,3 +137,70 @@ static void uart_task(void *params) {
     printf(" %lu ticks\n\n", (xTaskGetTickCount() - ticks));
   }
 }
+
+/*******************PART 2*********************/
+/*
+void CheckButtonPress_task(void *p) {
+
+  gpio_s led_sw = {1, 18};
+
+  while (1) {
+    xSemaphoreTake(switch_signal, portMAX_DELAY);
+    while (1) {
+      gpio__set(led_sw);
+      delay__ms(100);
+      gpio__reset(led_sw);
+      delay__ms(100);
+      fprintf(stderr, "LED is glowing.\n ");
+    }
+  }
+}
+*/
+void pin30_isr(void) {
+
+  // gpio_s switch_num = {0, 30};
+  // gpio__set_as_input(switch_num);
+  // gpio__enable_pull_down_resistors(switch_num);
+
+  fprintf(stderr, "Entered ISR due to Pin 30.\n ");
+}
+
+void pin29_isr(void) { fprintf(stderr, "Entered ISR due to pin 29.\n "); }
+
+/************END of PART 2*********************/
+
+/*************** PART 1*************************/
+void gpio_interrupt(void) {
+  xSemaphoreGiveFromISR(switch_pressed_signal, NULL);
+  fprintf(stderr, "Task is Interrupted. Switched is Pressed\n");
+  clear_gpio_interrupt();
+}
+
+void config_gpio_interrupt(void) {
+
+  gpio_s switch_num = {0, 30};
+  gpio__set_as_input(switch_num);
+  LPC_GPIOINT->IO0IntEnF |= (1 << 30);
+  lpc_peripheral__enable_interrupt(LPC_PERIPHERAL__GPIO, gpio_interrupt, "GPIO for Part 1");
+}
+
+void clear_gpio_interrupt(void) { LPC_GPIOINT->IO0IntClr = 0xFFFFFFFF; }
+
+void sleep_on_sem_task(void *p) {
+  while (1) {
+    if (xSemaphoreTake(switch_pressed_signal, portMAX_DELAY))
+      ;
+  }
+}
+
+void blinkLed_task(void *p) {
+  gpio_s led_sw2 = {1, 24};
+  while (1) {
+    gpio__set(led_sw2);
+    delay__ms(100);
+    gpio__reset(led_sw2);
+    delay__ms(100);
+    fprintf(stderr, "LED is Blinking\n");
+  }
+}
+/************END of PART 1*********************/
