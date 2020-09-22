@@ -30,10 +30,33 @@ static SemaphoreHandle_t switch_pressed_signal;
 /************ PART 2*********************/
 void pin30_isr(void);
 void pin29_isr(void);
-// void CheckButtonPress_task(void *p);
-// static SemaphoreHandle_t switch_signal;
+static SemaphoreHandle_t switch29_signal;
+static SemaphoreHandle_t switch30_signal;
+void Task(void *p);
+gpio_s led_sw29 = {1, 18};
+gpio_s led_sw30 = {1, 24};
 
 int main(void) {
+
+  /***************** PART 2*********************/
+
+  switch29_signal = xSemaphoreCreateBinary();
+  switch30_signal = xSemaphoreCreateBinary();
+
+  LPC_GPIO0->DIR &= ~(1 << 29);
+  LPC_GPIO0->DIR &= ~(1 << 30);
+
+  gpio0__attach_interrupt(30, GPIO_INTR__RISING_EDGE, pin30_isr);
+  gpio0__attach_interrupt(29, GPIO_INTR__FALLING_EDGE, pin29_isr);
+
+  lpc_peripheral__enable_interrupt(LPC_PERIPHERAL__GPIO, gpio0__interrupt_dispatcher, NULL);
+  NVIC_EnableIRQ(GPIO_IRQn);
+
+  xTaskCreate(Task, "Blink LED", (512U * 4) / sizeof(void *), NULL, PRIORITY_LOW, NULL);
+  /************ END of PART 2*********************/
+
+  puts("Starting RTOS");
+  vTaskStartScheduler(); // This function never returns unless RTOS scheduler runs out of memory and fails
 
   /*************** PART 1*************************/
   switch_pressed_signal = xSemaphoreCreateBinary();
@@ -42,18 +65,6 @@ int main(void) {
   xTaskCreate(sleep_on_sem_task, "Semaphore", (512U * 4) / sizeof(void *), NULL, PRIORITY_LOW, NULL);
   xTaskCreate(blinkLed_task, "Blink LED", (512U * 4) / sizeof(void *), NULL, PRIORITY_LOW, NULL);
   /************END of PART 1*********************/
-
-  puts("Starting RTOS");
-  vTaskStartScheduler(); // This function never returns unless RTOS scheduler runs out of memory and fails
-
-  /***************** PART 2*********************/
-  LPC_GPIO0->DIR &= ~(1 << 29);
-  LPC_GPIO0->DIR &= ~(1 << 30);
-  gpio0__attach_interrupt(30, GPIO_INTR__RISING_EDGE, pin30_isr);
-  lpc_peripheral__enable_interrupt(LPC_PERIPHERAL__GPIO, gpio0__interrupt_dispatcher, NULL);
-  NVIC_EnableIRQ(GPIO_IRQn);
-  /************ END of PART 2*********************/
-
   create_uart_task();
   create_blinky_tasks();
 
@@ -138,37 +149,6 @@ static void uart_task(void *params) {
   }
 }
 
-/*******************PART 2*********************/
-/*
-void CheckButtonPress_task(void *p) {
-
-  gpio_s led_sw = {1, 18};
-
-  while (1) {
-    xSemaphoreTake(switch_signal, portMAX_DELAY);
-    while (1) {
-      gpio__set(led_sw);
-      delay__ms(100);
-      gpio__reset(led_sw);
-      delay__ms(100);
-      fprintf(stderr, "LED is glowing.\n ");
-    }
-  }
-}
-*/
-void pin30_isr(void) {
-
-  // gpio_s switch_num = {0, 30};
-  // gpio__set_as_input(switch_num);
-  // gpio__enable_pull_down_resistors(switch_num);
-
-  fprintf(stderr, "Entered ISR due to Pin 30.\n ");
-}
-
-void pin29_isr(void) { fprintf(stderr, "Entered ISR due to pin 29.\n "); }
-
-/************END of PART 2*********************/
-
 /*************** PART 1*************************/
 void gpio_interrupt(void) {
   xSemaphoreGiveFromISR(switch_pressed_signal, NULL);
@@ -204,3 +184,31 @@ void blinkLed_task(void *p) {
   }
 }
 /************END of PART 1*********************/
+
+/*******************PART 2*********************/
+
+void Task(void *p) {}
+void pin30_isr(void) {
+  fprintf(stderr, "Entered ISR due to Pin 30.\n ");
+
+  while (1) {
+    xSemaphoreTake(switch30_signal, portMAX_DELAY);
+    gpio__set(led_sw30);
+    delay__ms(100);
+    gpio__reset(led_sw30);
+    delay__ms(100);
+  }
+}
+
+void pin29_isr(void) {
+  fprintf(stderr, "Entered ISR due to pin 29.\n ");
+  while (1) {
+    xSemaphoreTake(switch29_signal, portMAX_DELAY);
+    gpio__set(led_sw29);
+    delay__ms(100);
+    gpio__reset(led_sw29);
+    delay__ms(100);
+  }
+}
+
+/************END of PART 2*********************/

@@ -5,8 +5,8 @@
 #include <stdint.h>
 #include <stdio.h>
 
-// Note: You may want another separate array for falling vs. rising edge callbacks
 static function_pointer_t gpio0_callbacks[32];
+
 static void gpio__pin_handler(void) {
   while (1) {
   }
@@ -55,38 +55,32 @@ void gpio0__attach_interrupt(uint32_t pin, gpio_interrupt_e interrupt_type, func
 
   // Configure GPIO 0 pin for rising or falling edge
   if (interrupt_type == GPIO_INTR__FALLING_EDGE) {
-    // gpio_s switch30 = {0, pin};
-    // LPC_GPIO0->DIR &= ~(1 << pin);
     (LPC_GPIOINT->IO0IntEnF) |= (1 << pin);
 
   } else if (interrupt_type == GPIO_INTR__RISING_EDGE) {
-
-    // gpio_s switch29 = {0, pin};
     (LPC_GPIOINT->IO0IntEnR) |= (1 << pin);
   }
 }
 
-// We wrote some of the implementation for you
 void gpio0__interrupt_dispatcher(void) {
 
   // Check which pin generated the interrupt
   gpio_s pin_that_generated_interrupt;
+  int i = 0;
 
-  if (LPC_GPIOINT->IO0IntStatF) {
-    pin_that_generated_interrupt.pin_number = 29;
-
-    // function_pointer_t attached_user_handler = gpio0_callbacks[pin_that_generated_interrupt];
-    // fprintf(stderr, "pass4 attached_user_handler %p", attached_user_handler);
-  } else if (LPC_GPIOINT->IO0IntStatR) {
-    pin_that_generated_interrupt.pin_number = 30;
-    // function_pointer_t attached_user_handler = gpio0_callbacks[pin_that_generated_interrupt];
-    // fprintf(stderr, "pass4 attached_user_handler %p", attached_user_handler);
+  for (i = 0; i < 31; i++) {
+    if ((LPC_GPIOINT->IO0IntStatF) & (1 << i)) {
+      pin_that_generated_interrupt.pin_number = i;
+    } else if ((LPC_GPIOINT->IO0IntStatR) & (1 << i)) {
+      pin_that_generated_interrupt.pin_number = i;
+    }
   }
 
   function_pointer_t attached_user_handler = gpio0_callbacks[pin_that_generated_interrupt.pin_number];
-  fprintf(stderr, "Address of attached_user_handler = %p", attached_user_handler);
+  fprintf(stderr, "Address of attached_user_handler = %p  ", attached_user_handler);
 
   attached_user_handler();
+
   clear_pin_interrupt(pin_that_generated_interrupt);
 }
 
