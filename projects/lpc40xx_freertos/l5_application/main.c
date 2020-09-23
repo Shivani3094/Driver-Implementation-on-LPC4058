@@ -18,6 +18,7 @@ static void create_uart_task(void);
 static void blink_task(void *params);
 static void uart_task(void *params);
 
+static void gpio0_interrupt(void);
 /************ PART 1*********************/
 static void gpio_interrupt(void);
 void config_gpio_interrupt(void);
@@ -40,6 +41,35 @@ static gpio_s led_sw30 = {1, 24};
 
 int main(void) {
 
+  /*************** PART 0*************************/
+  LPC_GPIO0->DIR &= ~(1 << 30);
+  (LPC_GPIOINT->IO0IntEnF) |= (1 << 30);
+
+  lpc_peripheral__enable_interrupt(LPC_PERIPHERAL__GPIO, gpio0_interrupt, NULL);
+
+  NVIC_EnableIRQ(GPIO_IRQn);
+
+  while (1) {
+    {
+      gpio__set(led_sw30);
+      delay__ms(100);
+      gpio__reset(led_sw30);
+      delay__ms(100);
+    }
+  }
+  /************END of PART 0*********************/
+
+  puts("Starting RTOS");
+  vTaskStartScheduler(); // This function never returns unless RTOS scheduler runs out of memory and fails
+
+  /*************** PART 1*************************/
+  switch_pressed_signal = xSemaphoreCreateBinary();
+  config_gpio_interrupt();
+  NVIC_EnableIRQ(GPIO_IRQn);
+  xTaskCreate(sleep_on_sem_task, "Semaphore", (512U * 4) / sizeof(void *), NULL, PRIORITY_LOW, NULL);
+  xTaskCreate(blinkLed_task, "Blink LED", (512U * 4) / sizeof(void *), NULL, PRIORITY_LOW, NULL);
+  /************END of PART 1*********************/
+
   /***************** PART 2*********************/
 
   switch29_signal = xSemaphoreCreateBinary();
@@ -58,16 +88,6 @@ int main(void) {
   xTaskCreate(Task30, "Blink LED", 2048 / sizeof(void *), NULL, PRIORITY_LOW, NULL);
   /************ END of PART 2*********************/
 
-  puts("Starting RTOS");
-  vTaskStartScheduler(); // This function never returns unless RTOS scheduler runs out of memory and fails
-
-  /*************** PART 1*************************/
-  switch_pressed_signal = xSemaphoreCreateBinary();
-  config_gpio_interrupt();
-  NVIC_EnableIRQ(GPIO_IRQn);
-  xTaskCreate(sleep_on_sem_task, "Semaphore", (512U * 4) / sizeof(void *), NULL, PRIORITY_LOW, NULL);
-  xTaskCreate(blinkLed_task, "Blink LED", (512U * 4) / sizeof(void *), NULL, PRIORITY_LOW, NULL);
-  /************END of PART 1*********************/
   create_uart_task();
   create_blinky_tasks();
 
@@ -151,6 +171,13 @@ static void uart_task(void *params) {
     printf(" %lu ticks\n\n", (xTaskGetTickCount() - ticks));
   }
 }
+
+/*************** PART 0*************************/
+void gpio0_interrupt(void) {
+  fprintf(stderr, "Task is Interrupted.\n");
+  (LPC_GPIOINT->IO0IntClr) |= (1 << 30);
+}
+/***************END of PART 0*************************/
 
 /*************** PART 1*************************/
 void gpio_interrupt(void) {
