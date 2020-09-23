@@ -1,4 +1,7 @@
 #include <stdio.h>
+#define PART0
+//#define PART1
+//#define PART2
 
 #include "FreeRTOS.h"
 #include "board_io.h"
@@ -41,6 +44,7 @@ static gpio_s led_sw30 = {1, 24};
 
 int main(void) {
 
+#ifdef PART0
   /*************** PART 0*************************/
   LPC_GPIO0->DIR &= ~(1 << 30);
   (LPC_GPIOINT->IO0IntEnF) |= (1 << 30);
@@ -58,10 +62,9 @@ int main(void) {
     }
   }
   /************END of PART 0*********************/
+#endif
 
-  puts("Starting RTOS");
-  vTaskStartScheduler(); // This function never returns unless RTOS scheduler runs out of memory and fails
-
+#ifdef PART1
   /*************** PART 1*************************/
   switch_pressed_signal = xSemaphoreCreateBinary();
   config_gpio_interrupt();
@@ -69,7 +72,9 @@ int main(void) {
   xTaskCreate(sleep_on_sem_task, "Semaphore", (512U * 4) / sizeof(void *), NULL, PRIORITY_LOW, NULL);
   xTaskCreate(blinkLed_task, "Blink LED", (512U * 4) / sizeof(void *), NULL, PRIORITY_LOW, NULL);
   /************END of PART 1*********************/
+#endif
 
+#ifdef PART2
   /***************** PART 2*********************/
 
   switch29_signal = xSemaphoreCreateBinary();
@@ -87,6 +92,10 @@ int main(void) {
   xTaskCreate(Task29, "Blink LED", 2048 / sizeof(void *), NULL, PRIORITY_LOW, NULL);
   xTaskCreate(Task30, "Blink LED", 2048 / sizeof(void *), NULL, PRIORITY_LOW, NULL);
   /************ END of PART 2*********************/
+#endif
+
+  puts("Starting RTOS");
+  vTaskStartScheduler(); // This function never returns unless RTOS scheduler runs out of memory and fails
 
   create_uart_task();
   create_blinky_tasks();
