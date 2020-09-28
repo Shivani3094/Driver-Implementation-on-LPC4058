@@ -1,6 +1,12 @@
 #include <stdio.h>
 
+//#define PART0
+//#define PART1
+//#define PART2
+
 #include "FreeRTOS.h"
+#include "adc.h"
+#include "pwm1.h"
 #include "task.h"
 
 #include "board_io.h"
@@ -14,12 +20,34 @@ static void create_uart_task(void);
 static void blink_task(void *params);
 static void uart_task(void *params);
 
+/********Part 0********/
+void pwm_task(void *p);
+void pin_configure_pwm_channel_as_io_pin(void);
+
+/********Part 1********/
+void adc_task(void *p);
+void pin_configure_adc_channel_as_io_pin(void);
+
 int main(void) {
+
+#ifdef PART0
+  /***************************** PART 0 ************************************/
+  xTaskCreate(pwm_task, "PWM for Part 0", (512U * 4) / sizeof(void *), NULL, PRIORITY_LOW, NULL);
+
+  /***************************** PART 0 ************************************/
+#endif
+
+#ifdef PART1
+  /***************************** PART 1 ************************************/
+  xTaskCreate(adc_task, "ADC for Part 1", 4096 / sizeof(void *), NULL, PRIORITY_LOW, NULL);
+  
+  /***************************** PART 1 ************************************/
+#endif
+  puts("Starting RTOS");
+
+  vTaskStartScheduler(); // This function never returns unless RTOS scheduler runs out of memory and fails
   create_blinky_tasks();
   create_uart_task();
-
-  puts("Starting RTOS");
-  vTaskStartScheduler(); // This function never returns unless RTOS scheduler runs out of memory and fails
 
   return 0;
 }
@@ -98,3 +126,58 @@ static void uart_task(void *params) {
     printf(" %lu ticks\n\n", (xTaskGetTickCount() - ticks));
   }
 }
+
+/**************************** PART 0 ***********************************/
+void pwm_task(void *p) {
+
+  pin_configure_pwm_channel_as_io_pin();
+
+  pwm1__set_duty_cycle(PWM1__2_2, 50);
+  pwm1__init_single_edge(1000); // 1000Hz
+
+  uint8_t percent = 0;
+  while (1) {
+    pwm1__set_duty_cycle(PWM1__2_2, percent);
+    fprintf(stderr, "Entered while loop ");
+
+    if (++percent > 100) {
+      percent = 0;
+      fprintf(stderr, "Counter reached max capacity\n");
+    }
+
+    vTaskDelay(100);
+  }
+}
+
+void pin_configure_pwm_channel_as_io_pin(void) {
+
+  LPC_IOCON->P2_0 = 0b000;
+  LPC_IOCON->P2_0 = 0b001;
+}
+/************************ END OF PART 0 ***********************************/
+
+/****************************** PART 1 ************************************/
+void adc_task(void *p) {
+
+  adc__enable_burst_mode();
+
+  pin_configure_adc_channel_as_io_pin();
+
+  while (1) {
+    const uint16_t adc_value = adc__get_channel_reading_with_burst_mode(ADC__CHANNEL_4);
+    float volts = (adc_value * 3.3) / 4096.0;
+    fprintf(stderr, "ADC Value = %d, Volts = %f |", adc_value, volts);
+    // volts = (result*VREF)/4096.0;
+    vTaskDelay(100);
+  }
+}
+
+void pin_configure_adc_channel_as_io_pin(void) {
+
+  // ADC0.4
+  LPC_IOCON->P1_30 = 0b000; // clear the bits
+  LPC_IOCON->P1_30 = 0b011; // set the bits
+
+  LPC_IOCON->P1_30 &= ~(1U << 7);
+}
+/************************ END OF PART 1 ***********************************/
