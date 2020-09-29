@@ -41,6 +41,10 @@ static QueueHandle_t adc_to_pwm_task3_queue;
 void adc_task3(void *p);
 void pwm_task3(void *p);
 
+/********* Extra Credit *******/
+static QueueHandle_t adc_to_pwm_task4_queue;
+void adc_task4(void *p);
+void pwm_task4(void *p);
 
 int main(void) {
 
@@ -69,6 +73,7 @@ int main(void) {
   /***************************** PART 2 ************************************/
 #endif
 
+#ifdef PART3
   /***************************** PART 3 ************************************/
   // Queue will only hold 1 integer
   adc_to_pwm_task3_queue = xQueueCreate(1, sizeof(int));
@@ -77,7 +82,18 @@ int main(void) {
   xTaskCreate(pwm_task3, "PWM for Part 3", 4096 / sizeof(void *), NULL, PRIORITY_LOW, NULL);
 
   /***************************** PART 3 ************************************/
+#endif
 
+#ifdef PART4
+  /***************************** EXTRA CREDIT *******************************/
+  // Queue will only hold 1 integer
+  adc_to_pwm_task4_queue = xQueueCreate(1, sizeof(int));
+
+  xTaskCreate(adc_task4, "ADC for Extra Credit", 4096 / sizeof(void *), NULL, PRIORITY_LOW, NULL);
+  xTaskCreate(pwm_task4, "PWM for Extra Credit", 4096 / sizeof(void *), NULL, PRIORITY_LOW, NULL);
+
+  /***************************** EXTRA CREDIT *******************************/
+#endif
   puts("Starting RTOS");
 
   vTaskStartScheduler(); // This function never returns unless RTOS scheduler runs out of memory and fails
@@ -188,6 +204,12 @@ void pin_configure_pwm_channel_as_io_pin(void) {
 
   LPC_IOCON->P2_0 = 0b000;
   LPC_IOCON->P2_0 = 0b001;
+
+  LPC_IOCON->P2_1 = 0b000;
+  LPC_IOCON->P2_1 = 0b001;
+
+  LPC_IOCON->P2_2 = 0b000;
+  LPC_IOCON->P2_2 = 0b001;
 }
 /************************ END OF PART 0 ***********************************/
 
@@ -202,7 +224,7 @@ void adc_task(void *p) {
     const uint16_t adc_value = adc__get_channel_reading_with_burst_mode(ADC__CHANNEL_4);
     float volts = (adc_value * 3.3) / 4096.0;
     fprintf(stderr, "ADC Value = %d, Volts = %f |", adc_value, volts);
-    
+
     vTaskDelay(100);
   }
 }
@@ -250,7 +272,6 @@ void pwm_task2(void *p) {
 
 /************************ END OF PART 2 ***********************************/
 
-
 /****************************** PART 3 ************************************/
 
 void adc_task3(void *p) {
@@ -262,11 +283,9 @@ void adc_task3(void *p) {
   while (1) {
     // Read ADC value by changing potentiometer
     int adc_reading3 = adc__get_channel_reading_with_burst_mode(ADC__CHANNEL_4);
-    float volts = (adc_reading3 * 3.3) / 4096.0;
-    fprintf(stderr, "ADC Value = %d, Volts = %f |", adc_reading3, volts);
-
     // Send the values to queue
-    xQueueSend(adc_to_pwm_task_queue, &adc_reading3, 0);
+    xQueueSend(adc_to_pwm_task3_queue, &adc_reading3, 0);
+
     vTaskDelay(100);
   }
 }
@@ -274,23 +293,70 @@ void adc_task3(void *p) {
 void pwm_task3(void *p) {
 
   int adc_reading3 = 0;
-  LPC_GPIO1->DIR |= ( 1 << 18);
-  int i = 0;
 
   pin_configure_pwm_channel_as_io_pin();
-  pwm1__set_duty_cycle(PWM1__2_2, 50);
-  pwm1__init_single_edge(1000); // 1000Hz
+  pwm1__set_duty_cycle(PWM1__2_0, 50);
+  pwm1__init_single_edge(100); // 100Hz
 
   while (1) {
 
-    if (xQueueReceive(adc_to_pwm_task_queue, &adc_reading3, 100)) {
-      for(i=0; i<4096;i++)
-      {
-        int percent = (adc_reading3 *100)/4096;
-      pwm1__set_duty_cycle(PWM1__2_2, percent);
-      }
+    if (xQueueReceive(adc_to_pwm_task3_queue, &adc_reading3, 100)) {
+      float volts = (adc_reading3 * 3.3) / 4096.0;
+      float percent = (adc_reading3 * 100) / 4096;
+      int reg_MR0 = LPC_PWM1->MR0;
+      int reg_MR1 = LPC_PWM1->MR1;
+      fprintf(stderr, "ADC Value = %d | Volts = %f | Percent = %f | MR0 = %d | MR1 = %d\n", adc_reading3, volts,
+              percent, reg_MR0, reg_MR1);
+      pwm1__set_duty_cycle(PWM1__2_0, percent);
     }
   }
 }
 
 /************************ END OF PART 3 ***********************************/
+
+/****************************** EXTRA CREDIT *******************************/
+void adc_task4(void *p) {
+
+  adc__enable_burst_mode();
+
+  pin_configure_adc_channel_as_io_pin();
+
+  while (1) {
+    // Read ADC value by changing potentiometer
+    int adc_reading4 = adc__get_channel_reading_with_burst_mode(ADC__CHANNEL_4);
+    // Send the values to queue
+    xQueueSend(adc_to_pwm_task4_queue, &adc_reading4, 0);
+
+    vTaskDelay(100);
+  }
+}
+
+void pwm_task4(void *p) {
+
+  int adc_reading4 = 0;
+
+  pin_configure_pwm_channel_as_io_pin();
+  pwm1__set_duty_cycle(PWM1__2_0, 50);
+  pwm1__set_duty_cycle(PWM1__2_1, 50);
+  pwm1__set_duty_cycle(PWM1__2_2, 50);
+
+  pwm1__init_single_edge(10); // 1000Hz
+
+  while (1) {
+
+    if (xQueueReceive(adc_to_pwm_task4_queue, &adc_reading4, 100)) {
+      float volts = (adc_reading4 * 3.3) / 4096.0;
+      float percent = (adc_reading4 * 100) / 4096;
+      fprintf(stderr, "ADC Value = %d, Volts = %f Percent = %f\n", adc_reading4, volts, percent);
+
+      pwm1__set_duty_cycle(PWM1__2_0, percent);
+      delay__ms(100);
+      pwm1__set_duty_cycle(PWM1__2_1, percent);
+      delay__ms(200);
+      pwm1__set_duty_cycle(PWM1__2_2, percent);
+      delay__ms(300);
+    }
+  }
+}
+
+/************************ END OF EXTRA CREDIT *********************************/
