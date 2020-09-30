@@ -1,10 +1,11 @@
 #include <stdio.h>
 
+// Uncomment depending on the part of the lab to execute
 //#define PART0
 //#define PART1
 //#define PART2
 //#define PART3
-//#define PART4
+#define PART4
 
 #include "FreeRTOS.h"
 #include "adc.h"
@@ -273,6 +274,9 @@ void pwm_task2(void *p) {
 /************************ END OF PART 2 ***********************************/
 
 /****************************** PART 3 ************************************/
+/* The ADC task will read the potentiometer vales and them over the queue. 
+/* The PWM task will read the values and evaluate value in volts and percent
+/****************************** PART 3 ************************************/
 
 void adc_task3(void *p) {
 
@@ -296,7 +300,7 @@ void pwm_task3(void *p) {
 
   pin_configure_pwm_channel_as_io_pin();
   pwm1__set_duty_cycle(PWM1__2_0, 50);
-  pwm1__init_single_edge(100); // 100Hz
+  pwm1__init_single_edge(1000); // 1000Hz
 
   while (1) {
 
@@ -315,6 +319,10 @@ void pwm_task3(void *p) {
 /************************ END OF PART 3 ***********************************/
 
 /****************************** EXTRA CREDIT *******************************/
+/* The LED will glow depending on the range in which the ADC values are.
+/* The frequency is set to 10 Hz to show the LED on and off often.
+/* At a time only one of the LEDs will glow and the rest will be off.
+/***************************************************************************/
 void adc_task4(void *p) {
 
   adc__enable_burst_mode();
@@ -340,23 +348,32 @@ void pwm_task4(void *p) {
   pwm1__set_duty_cycle(PWM1__2_1, 50);
   pwm1__set_duty_cycle(PWM1__2_2, 50);
 
-  pwm1__init_single_edge(10); // 1000Hz
-
+  pwm1__init_single_edge(10); // 10Hz
+  int i, j, k = 0;
   while (1) {
 
     if (xQueueReceive(adc_to_pwm_task4_queue, &adc_reading4, 100)) {
       float volts = (adc_reading4 * 3.3) / 4096.0;
       float percent = (adc_reading4 * 100) / 4096;
-      fprintf(stderr, "ADC Value = %d, Volts = %f Percent = %f\n", adc_reading4, volts, percent);
+      fprintf(stderr, "ADC Value = %d, Volts = %f Percent = %f ", adc_reading4, volts, percent);
 
-      pwm1__set_duty_cycle(PWM1__2_0, percent);
-      delay__ms(100);
-      pwm1__set_duty_cycle(PWM1__2_1, percent);
-      delay__ms(200);
-      pwm1__set_duty_cycle(PWM1__2_2, percent);
-      delay__ms(300);
+      if (((0 < adc_reading4) && (adc_reading4 < 1365)) || (adc_reading4 == 0)) {
+        pwm1__set_duty_cycle(PWM1__2_0, percent);
+        pwm1__set_duty_cycle(PWM1__2_1, 0);
+        pwm1__set_duty_cycle(PWM1__2_2, 0);
+        fprintf(stderr, "Port 2.0\n");
+      } else if (((1366 < adc_reading4) && (adc_reading4 < 2730)) || (adc_reading4 == 1366)) {
+        pwm1__set_duty_cycle(PWM1__2_1, percent);
+        pwm1__set_duty_cycle(PWM1__2_0, 0);
+        pwm1__set_duty_cycle(PWM1__2_2, 0);
+        fprintf(stderr, "Port 2.1\n");
+      } else if ((2730 < adc_reading4) && (adc_reading4 < 4096)) {
+        pwm1__set_duty_cycle(PWM1__2_2, percent);
+        pwm1__set_duty_cycle(PWM1__2_0, 0);
+        pwm1__set_duty_cycle(PWM1__2_1, 0);
+        fprintf(stderr, "Port 2.2\n");
+      }
     }
   }
 }
-
 /************************ END OF EXTRA CREDIT *********************************/

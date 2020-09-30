@@ -78,9 +78,7 @@ uint16_t adc__get_channel_reading_with_burst_mode(uint8_t channel_number) {
     ;
   }
 
-  // if (LPC_ADC->DR[4] & (1 << 31)) {
   // Mask the bits to read the value read by Results bit.
   result = (((LPC_ADC->DR[4]) >> 4) & 0x0FFF);
   return result;
-  //}
 }
