@@ -1,0 +1,78 @@
+
+--------------------------------------------------------------------------------
+peripherals_init(): Low level startup
+WARNING: SD card could not be mounted
+
+I2C slave detected at address: 0x38
+I2C slave detected at address: 0x64
+I2C slave detected at address: 0x72
+
+entry_point(): Entering main()
+Starting RTOS
+ADC Value = 0 | Volts = 0.000000 | Percent = 0.000000 | MR0 = 95999 | MR1 = 0
+ADC Value = 0 | Volts = 0.000000 | Percent = 0.000000 | MR0 = 95999 | MR1 = 0
+ADC Value = 0 | Volts = 0.000000 | Percent = 0.000000 | MR0 = 95999 | MR1 = 0
+ADC Value = 0 | Volts = 0.000000 | Percent = 0.000000 | MR0 = 95999 | MR1 = 0
+ADC Value = 0 | Volts = 0.000000 | Percent = 0.000000 | MR0 = 95999 | MR1 = 0
+ADC Value = 0 | Volts = 0.000000 | Percent = 0.000000 | MR0 = 95999 | MR1 = 0
+ADC Value = 0 | Volts = 0.000000 | Percent = 0.000000 | MR0 = 95999 | MR1 = 0
+ADC Value = 0 | Volts = 0.000000 | Percent = 0.000000 | MR0 = 95999 | MR1 = 0
+ADC Value = 202 | Volts = 0.162744 | Percent = 4.000000 | MR0 = 95999 | MR1 = 0
+ADC Value = 383 | Volts = 0.308569 | Percent = 9.000000 | MR0 = 95999 | MR1 = 3839
+ADC Value = 528 | Volts = 0.425391 | Percent = 12.000000 | MR0 = 95999 | MR1 = 8639
+ADC Value = 694 | Volts = 0.559131 | Percent = 16.000000 | MR0 = 95999 | MR1 = 11519
+ADC Value = 765 | Volts = 0.616333 | Percent = 18.000000 | MR0 = 95999 | MR1 = 15359
+ADC Value = 980 | Volts = 0.789551 | Percent = 23.000000 | MR0 = 95999 | MR1 = 17279
+ADC Value = 1094 | Volts = 0.881396 | Percent = 26.000000 | MR0 = 95999 | MR1 = 22079
+ADC Value = 1165 | Volts = 0.938599 | Percent = 28.000000 | MR0 = 95999 | MR1 = 24959
+ADC Value = 1359 | Volts = 1.094898 | Percent = 33.000000 | MR0 = 95999 | MR1 = 26879
+ADC Value = 1540 | Volts = 1.240723 | Percent = 37.000000 | MR0 = 95999 | MR1 = 31679
+ADC Value = 1575 | Volts = 1.268921 | Percent = 38.000000 | MR0 = 95999 | MR1 = 35519
+ADC Value = 1653 | Volts = 1.331763 | Percent = 40.000000 | MR0 = 95999 | MR1 = 36479
+ADC Value = 1705 | Volts = 1.373657 | Percent = 41.000000 | MR0 = 95999 | MR1 = 38399
+ADC Value = 1750 | Volts = 1.409912 | Percent = 42.000000 | MR0 = 95999 | MR1 = 39359
+ADC Value = 1753 | Volts = 1.412329 | Percent = 42.000000 | MR0 = 95999 | MR1 = 40319
+ADC Value = 1753 | Volts = 1.412329 | Percent = 42.000000 | MR0 = 95999 | MR1 = 40319
+ADC Value = 1759 | Volts = 1.417163 | Percent = 42.000000 | MR0 = 95999 | MR1 = 40319
+ADC Value = 1767 | Volts = 1.423608 | Percent = 43.000000 | MR0 = 95999 | MR1 = 40319
+ADC Value = 1772 | Volts = 1.427637 | Percent = 43.000000 | MR0 = 95999 | MR1 = 41279
+ADC Value = 1781 | Volts = 1.434888 | Percent = 43.000000 | MR0 = 95999 | MR1 = 41279
+ADC Value = 1809 | Volts = 1.457446 | Percent = 44.000000 | MR0 = 95999 | MR1 = 41279
+ADC Value = 1927 | Volts = 1.552515 | Percent = 47.000000 | MR0 = 95999 | MR1 = 42239
+ADC Value = 2017 | Volts = 1.625024 | Percent = 49.000000 | MR0 = 95999 | MR1 = 45119
+ADC Value = 2196 | Volts = 1.769238 | Percent = 53.000000 | MR0 = 95999 | MR1 = 47039
+ADC Value = 2375 | Volts = 1.913452 | Percent = 57.000000 | MR0 = 95999 | MR1 = 50879
+ADC Value = 2548 | Volts = 2.052832 | Percent = 62.000000 | MR0 = 95999 | MR1 = 54719
+ADC Value = 2632 | Volts = 2.120508 | Percent = 64.000000 | MR0 = 95999 | MR1 = 59519
+ADC Value = 2757 | Volts = 2.221216 | Percent = 67.000000 | MR0 = 95999 | MR1 = 61439
+ADC Value = 3209 | Volts = 2.585376 | Percent = 78.000000 | MR0 = 95999 | MR1 = 64319
+ADC Value = 3396 | Volts = 2.736035 | Percent = 82.000000 | MR0 = 95999 | MR1 = 74879
+ADC Value = 3389 | Volts = 2.730396 | Percent = 82.000000 | MR0 = 95999 | MR1 = 78719
+ADC Value = 3384 | Volts = 2.726367 | Percent = 82.000000 | MR0 = 95999 | MR1 = 78719
+ADC Value = 3397 | Volts = 2.736841 | Percent = 82.000000 | MR0 = 95999 | MR1 = 78719
+ADC Value = 3398 | Volts = 2.737647 | Percent = 82.000000 | MR0 = 95999 | MR1 = 78719
+ADC Value = 3397 | Volts = 2.736841 | Percent = 82.000000 | MR0 = 95999 | MR1 = 78719
+ADC Value = 3409 | Volts = 2.746509 | Percent = 83.000000 | MR0 = 95999 | MR1 = 78719
+ADC Value = 3473 | Volts = 2.798071 | Percent = 84.000000 | MR0 = 95999 | MR1 = 79679
+ADC Value = 3757 | Volts = 3.026880 | Percent = 91.000000 | MR0 = 95999 | MR1 = 80639
+ADC Value = 3869 | Volts = 3.117114 | Percent = 94.000000 | MR0 = 95999 | MR1 = 87359
+ADC Value = 4066 | Volts = 3.275830 | Percent = 99.000000 | MR0 = 95999 | MR1 = 90239
+ADC Value = 4095 | Volts = 3.299194 | Percent = 99.000000 | MR0 = 95999 | MR1 = 95039
+ADC Value = 4095 | Volts = 3.299194 | Percent = 99.000000 | MR0 = 95999 | MR1 = 95039
+ADC Value = 4095 | Volts = 3.299194 | Percent = 99.000000 | MR0 = 95999 | MR1 = 95039
+ADC Value = 4095 | Volts = 3.299194 | Percent = 99.000000 | MR0 = 95999 | MR1 = 95039
+ADC Value = 4095 | Volts = 3.299194 | Percent = 99.000000 | MR0 = 95999 | MR1 = 95039
+ADC Value = 4095 | Volts = 3.299194 | Percent = 99.000000 | MR0 = 95999 | MR1 = 95039
+ADC Value = 4095 | Volts = 3.299194 | Percent = 99.000000 | MR0 = 95999 | MR1 = 95039
+ADC Value = 4095 | Volts = 3.299194 | Percent = 99.000000 | MR0 = 95999 | MR1 = 95039
+ADC Value = 4095 | Volts = 3.299194 | Percent = 99.000000 | MR0 = 95999 | MR1 = 95039
+ADC Value = 4095 | Volts = 3.299194 | Percent = 99.000000 | MR0 = 95999 | MR1 = 95039
+ADC Value = 4095 | Volts = 3.299194 | Percent = 99.000000 | MR0 = 95999 | MR1 = 95039
+ADC Value = 4095 | Volts = 3.299194 | Percent = 99.000000 | MR0 = 95999 | MR1 = 95039
+ADC Value = 4095 | Volts = 3.299194 | Percent = 99.000000 | MR0 = 95999 | MR1 = 95039
+ADC Value = 4095 | Volts = 3.299194 | Percent = 99.000000 | MR0 = 95999 | MR1 = 95039
+ADC Value = 4095 | Volts = 3.299194 | Percent = 99.000000 | MR0 = 95999 | MR1 = 95039
+ADC Value = 4095 | Volts = 3.299194 | Percent = 99.000000 | MR0 = 95999 | MR1 = 95039
+ADC Value = 4095 | Volts = 3.299194 | Percent = 99.000000 | MR0 = 95999 | MR1 = 95039
+ADC Value = 4095 | Volts = 3.299194 | Percent = 99.000000 | MR0 = 95999 | MR1 = 95039
+ADC Value = 4095 | Volts = 3.299194 | Percent = 99.000000 | MR0 = 95999 | MR1 = 95039
