@@ -27,6 +27,7 @@ typedef struct {
   uint8_t device_id_2;
   uint8_t extended_device_id;
 } adesto_flash_id_s;
+void logic_analyser_trigger(void);
 
 /************ PART 2 ******************/
 void spi_id_verification_task(void *p);
@@ -38,12 +39,12 @@ int main(void) {
   xTaskCreate(spi_task, "SPI_task_Part_1", (512U * 4) / sizeof(void *), NULL, PRIORITY_LOW, NULL);
 #endif
 
-  #ifdef PART2
+#ifdef PART2
   spi_bus_mutex = xSemaphoreCreateMutex();
 
   xTaskCreate(spi_id_verification_task, "SPI_task_Part_2", (512U * 4) / sizeof(void *), NULL, PRIORITY_LOW, NULL);
   xTaskCreate(spi_id_verification_task, "SPI_task_Part_2", (512U * 4) / sizeof(void *), NULL, PRIORITY_LOW, NULL);
-  #endif
+#endif
 
   puts("Starting RTOS");
   vTaskStartScheduler(); // This function never returns unless RTOS scheduler runs out of memory and fails
@@ -135,18 +136,36 @@ const uint8_t opcode_to_initiate_read = 0x9F;
 adesto_flash_id_s dummy_byte_read = {0xAA, 0x55, 0xFF, 0xBB};
 adesto_flash_id_s spi_byte_write;
 
+void logic_analyser_trigger(void) {
+  const uint32_t pin_logic = (1U << 28);
+
+  // PORT4, PIN 28
+  // Black: Channel0- SCK; Brown: Channel1-MOSI; Red:Channel2-MISO; Yellow:Channel3-Enable
+  LPC_GPIO4->DIR |= pin_logic;
+  LPC_GPIO4->SET = pin_logic;
+  LPC_GPIO4->CLR = pin_logic;
+}
+
 // Set Chip Select
 static void adesto_cs(void) {
+
   set_chip_select = gpio__construct_as_output(GPIO__PORT_1, 10);
   gpio__reset(set_chip_select);
+  logic_analyser_trigger();
 }
 
 // Reset Chip Select
-static void adesto_ds(void) { gpio__set(set_chip_select); }
+static void adesto_ds(void) {
 
+  gpio__set(set_chip_select);
+  const uint32_t pin_logic = (1U << 28);
+  LPC_GPIO4->DIR |= pin_logic;
+  LPC_GPIO4->CLR = pin_logic;
+}
 adesto_flash_id_s adesto_read_signature(void) {
   adesto_cs();
   {
+
     ssp2_lab__exchange_byte(opcode_to_initiate_read);
 
     spi_byte_write.manufacturer_id = ssp2_lab__exchange_byte(dummy_byte_read.manufacturer_id);
@@ -160,7 +179,7 @@ adesto_flash_id_s adesto_read_signature(void) {
 }
 
 void spi_task(void *p) {
-  const uint32_t spi_clock_mhz = 24;
+  const uint32_t spi_clock_mhz = 1;
   ssp2_lab__init(spi_clock_mhz);
   configure__ssp2_lab_pin_functions();
 
@@ -172,6 +191,7 @@ void spi_task(void *p) {
     vTaskDelay(1000);
   }
 }
+
 /************************ END of PART 1 **************************/
 
 /************************ PART 2 **************************/
