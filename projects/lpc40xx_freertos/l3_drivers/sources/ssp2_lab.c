@@ -1,5 +1,8 @@
 #include "ssp2_lab.h"
 #include "gpio.h"
+#include <stdint.h>
+#include <stdio.h>
+
 /*
  * Pin Numbers:
  * SSP2 -> SCK = P1_0
@@ -25,7 +28,9 @@ void ssp2_lab__init(uint32_t max_clock_mhz) {
    */
 
   LPC_SSP2->CPSR = cpu_clock / max_clock_mhz;
+}
 
+void configure__ssp2_lab_pin_functions(void) {
   // Set SCK, MISO and MOSI as output pins
   LPC_IOCON->P1_0 &= ~(set_pin_as_output); // SCK
   LPC_IOCON->P1_1 &= ~(set_pin_as_output); // MOSI
@@ -35,19 +40,15 @@ void ssp2_lab__init(uint32_t max_clock_mhz) {
   LPC_IOCON->P1_1 |= set_pin_as_output;
   LPC_IOCON->P1_4 |= set_pin_as_output;
 
-  gpio_s set_chip_select = gpio__construct_as_output(GPIO__PORT_1, 10);
-  gpio__set(set_chip_select);
-
   // Setup control registers CR0 and CR1
-  LPC_SSP2->CR0 = (0b111 << 0) || (0b0 << 4);
+  LPC_SSP2->CR0 = 7;
   LPC_SSP2->CR1 = (1 << 1);
 }
-
 uint8_t ssp2_lab__exchange_byte(uint8_t data_out) {
 
   LPC_SSP2->DR = data_out;
 
-  while (LPC_SSP2->SR && busy_bit_SR) {
+  while (LPC_SSP2->SR & busy_bit_SR) {
     // This will loop until the busy bit is set to 0 indicating end of transfer
   }
 
