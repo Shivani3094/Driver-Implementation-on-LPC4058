@@ -1,17 +1,18 @@
 #include <stdio.h>
 
 //#define PART1
+#define PART2
 
 #include "FreeRTOS.h"
-#include "ssp2_lab.h"
-#include "task.h"
-
 #include "board_io.h"
 #include "common_macros.h"
 #include "gpio.h"
 #include "lpc40xx.h"
 #include "periodic_scheduler.h"
+#include "semphr.h"
 #include "sj2_cli.h"
+#include "ssp2_lab.h"
+#include "task.h"
 
 static void create_blinky_tasks(void);
 static void create_uart_task(void);
@@ -29,15 +30,20 @@ typedef struct {
 
 /************ PART 2 ******************/
 void spi_id_verification_task(void *p);
+static SemaphoreHandle_t spi_bus_mutex;
 
 int main(void) {
 
-#if PART1
+#ifdef PART1
   xTaskCreate(spi_task, "SPI_task_Part_1", (512U * 4) / sizeof(void *), NULL, PRIORITY_LOW, NULL);
 #endif
 
+  #ifdef PART2
+  spi_bus_mutex = xSemaphoreCreateMutex();
+
   xTaskCreate(spi_id_verification_task, "SPI_task_Part_2", (512U * 4) / sizeof(void *), NULL, PRIORITY_LOW, NULL);
   xTaskCreate(spi_id_verification_task, "SPI_task_Part_2", (512U * 4) / sizeof(void *), NULL, PRIORITY_LOW, NULL);
+  #endif
 
   puts("Starting RTOS");
   vTaskStartScheduler(); // This function never returns unless RTOS scheduler runs out of memory and fails
@@ -176,13 +182,16 @@ void spi_id_verification_task(void *p) {
   configure__ssp2_lab_pin_functions();
 
   while (1) {
-    // const adesto_flash_id_s id = ssp2__adesto_read_signature();
-    const adesto_flash_id_s id = adesto_read_signature();
+    if (xSemaphoreTake(spi_bus_mutex, 1000)) {
+      const adesto_flash_id_s id = adesto_read_signature();
 
-    // When we read a manufacturer ID we do not expect, we will kill this task
-    if (id.manufacturer_id != 0x1F) {
-      fprintf(stderr, "Manufacturer ID Read Failure \n\n");
-      vTaskSuspend(NULL); // Kill this task
+      // When we read a manufacturer ID we do not expect, we will kill this task
+      if (id.manufacturer_id != 0x1F) {
+        fprintf(stderr, "Manufacturer ID Read Failure \n\n");
+        vTaskSuspend(NULL); // Kill this task
+      } else {
+        fprintf(stderr, "Reading is successful in presence of Mutex. Manufacture ID: %x", id.manufacturer_id);
+      }
     }
   }
 }
