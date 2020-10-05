@@ -27,11 +27,17 @@ typedef struct {
   uint8_t extended_device_id;
 } adesto_flash_id_s;
 
+/************ PART 2 ******************/
+void spi_id_verification_task(void *p);
+
 int main(void) {
 
-  #if PART1
+#if PART1
   xTaskCreate(spi_task, "SPI_task_Part_1", (512U * 4) / sizeof(void *), NULL, PRIORITY_LOW, NULL);
-  #endif
+#endif
+
+  xTaskCreate(spi_id_verification_task, "SPI_task_Part_2", (512U * 4) / sizeof(void *), NULL, PRIORITY_LOW, NULL);
+  xTaskCreate(spi_id_verification_task, "SPI_task_Part_2", (512U * 4) / sizeof(void *), NULL, PRIORITY_LOW, NULL);
 
   puts("Starting RTOS");
   vTaskStartScheduler(); // This function never returns unless RTOS scheduler runs out of memory and fails
@@ -161,3 +167,23 @@ void spi_task(void *p) {
   }
 }
 /************************ END of PART 1 **************************/
+
+/************************ PART 2 **************************/
+void spi_id_verification_task(void *p) {
+
+  const uint32_t spi_clock_mhz = 24;
+  ssp2_lab__init(spi_clock_mhz);
+  configure__ssp2_lab_pin_functions();
+
+  while (1) {
+    // const adesto_flash_id_s id = ssp2__adesto_read_signature();
+    const adesto_flash_id_s id = adesto_read_signature();
+
+    // When we read a manufacturer ID we do not expect, we will kill this task
+    if (id.manufacturer_id != 0x1F) {
+      fprintf(stderr, "Manufacturer ID Read Failure \n\n");
+      vTaskSuspend(NULL); // Kill this task
+    }
+  }
+}
+/************************ END of PART 2 **************************/
