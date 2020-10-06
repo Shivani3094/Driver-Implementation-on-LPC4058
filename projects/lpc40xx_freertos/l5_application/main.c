@@ -1,7 +1,8 @@
 #include <stdio.h>
 
-//#define PART1
-#define PART2
+#define PART1
+//#define PART2
+//#define EXTRACREDIT
 
 #include "FreeRTOS.h"
 #include "board_io.h"
@@ -27,11 +28,22 @@ typedef struct {
   uint8_t device_id_2;
   uint8_t extended_device_id;
 } adesto_flash_id_s;
-void logic_analyser_trigger(void);
+void logic_analyser_trigger_reset(void);
+void logic_analyser_trigger_set(void);
 
 /************ PART 2 ******************/
 void spi_id_verification_task(void *p);
 static SemaphoreHandle_t spi_bus_mutex;
+
+/********** EXTRA CREDIT *************/
+void write_enable(void);
+uint8_t write_data(void);
+void page_program_init(void);
+void read_array(void);
+uint8_t read_status_reg(uint8_t opcode_read_status_reg);
+void adesto_flash_send_address(uint32_t address);
+uint8_t read_write__SPI(void);
+void spi_task_extra(void *p);
 
 int main(void) {
 
@@ -42,10 +54,13 @@ int main(void) {
 #ifdef PART2
   spi_bus_mutex = xSemaphoreCreateMutex();
 
-  xTaskCreate(spi_id_verification_task, "SPI_task_Part_2", (512U * 4) / sizeof(void *), NULL, PRIORITY_LOW, NULL);
-  xTaskCreate(spi_id_verification_task, "SPI_task_Part_2", (512U * 4) / sizeof(void *), NULL, PRIORITY_LOW, NULL);
+  xTaskCreate(spi_id_verification_task, "SPI_task1_Part_2", (512U * 4) / sizeof(void *), NULL, PRIORITY_LOW, NULL);
+  xTaskCreate(spi_id_verification_task, "SPI_task2_Part_2", (512U * 4) / sizeof(void *), NULL, PRIORITY_LOW, NULL);
 #endif
 
+#ifdef EXTRACREDIT
+  xTaskCreate(spi_task_extra, "SPI_task2_Part_2", (512U * 4) / sizeof(void *), NULL, PRIORITY_LOW, NULL);
+#endif
   puts("Starting RTOS");
   vTaskStartScheduler(); // This function never returns unless RTOS scheduler runs out of memory and fails
 
@@ -136,14 +151,22 @@ const uint8_t opcode_to_initiate_read = 0x9F;
 adesto_flash_id_s dummy_byte_read = {0xAA, 0x55, 0xFF, 0xBB};
 adesto_flash_id_s spi_byte_write;
 
-void logic_analyser_trigger(void) {
+void logic_analyser_trigger_reset(void) {
+  const uint32_t pin_logic = (1U << 28);
+
+  // PORT4, PIN 28
+  // Black: Channel0- SCK; Brown: Channel1-MOSI; Red:Channel2-MISO; Yellow:Channel3-Enable
+  LPC_GPIO4->DIR |= pin_logic;
+  LPC_GPIO4->CLR = pin_logic;
+}
+
+void logic_analyser_trigger_set(void) {
   const uint32_t pin_logic = (1U << 28);
 
   // PORT4, PIN 28
   // Black: Channel0- SCK; Brown: Channel1-MOSI; Red:Channel2-MISO; Yellow:Channel3-Enable
   LPC_GPIO4->DIR |= pin_logic;
   LPC_GPIO4->SET = pin_logic;
-  LPC_GPIO4->CLR = pin_logic;
 }
 
 // Set Chip Select
@@ -151,7 +174,7 @@ static void adesto_cs(void) {
 
   set_chip_select = gpio__construct_as_output(GPIO__PORT_1, 10);
   gpio__reset(set_chip_select);
-  logic_analyser_trigger();
+  logic_analyser_trigger_reset();
 }
 
 // Reset Chip Select
@@ -161,6 +184,7 @@ static void adesto_ds(void) {
   const uint32_t pin_logic = (1U << 28);
   LPC_GPIO4->DIR |= pin_logic;
   LPC_GPIO4->CLR = pin_logic;
+  logic_analyser_trigger_set();
 }
 adesto_flash_id_s adesto_read_signature(void) {
   adesto_cs();
@@ -203,6 +227,7 @@ void spi_id_verification_task(void *p) {
 
   while (1) {
     if (xSemaphoreTake(spi_bus_mutex, 1000)) {
+
       const adesto_flash_id_s id = adesto_read_signature();
 
       // When we read a manufacturer ID we do not expect, we will kill this task
@@ -210,9 +235,112 @@ void spi_id_verification_task(void *p) {
         fprintf(stderr, "Manufacturer ID Read Failure \n\n");
         vTaskSuspend(NULL); // Kill this task
       } else {
-        fprintf(stderr, "Reading is successful in presence of Mutex. Manufacture ID: %x", id.manufacturer_id);
+        fprintf(stderr,
+                "Reading is successful with Mutex.\nManfacture ID: %x\n Device ID1: %x\n Device ID2: %x\n Extended "
+                "device ID:%x\n\n",
+                id.manufacturer_id, id.device_id_1, id.device_id_2, id.extended_device_id);
       }
+      // Return the semaphore to avoid deadlock
+      xSemaphoreGive(spi_bus_mutex);
     }
   }
 }
 /************************ END of PART 2 **************************/
+
+/************************ EXTRA CREDIT **************************/
+/**
+ * Adesto flash asks to send 24-bit address
+ * We can use our usual uint32_t to store the address
+ * and then transmit this address over the SPI driver
+ * one byte at a time
+ */
+
+const uint8_t dummy_byte = 0xBB;
+
+void write_enable(void) {
+  const uint8_t opcode_write_enable = 0x06;
+  ssp2_lab__exchange_byte(opcode_write_enable);
+}
+
+uint8_t write_data(void) {
+  const uint8_t write_data = 0x58;
+  ssp2_lab__exchange_byte(write_data);
+  return write_data;
+}
+
+void page_program_init(void) {
+  const uint8_t opcode_page_program = 0x02;
+  ssp2_lab__exchange_byte(opcode_page_program);
+}
+
+void read_array(void) {
+  const uint8_t opcode_read_array = 0x03;
+  ssp2_lab__exchange_byte(opcode_read_array);
+}
+
+uint8_t read_status_reg(uint8_t opcode_read_status_reg) {
+  ssp2_lab__exchange_byte(opcode_read_status_reg);
+  const uint8_t status_reg = ssp2_lab__exchange_byte(dummy_byte);
+  return status_reg;
+}
+
+void adesto_flash_send_address(uint32_t address) {
+
+  (void)ssp2_lab__exchange_byte((address >> 16) & 0xFF);
+  (void)ssp2_lab__exchange_byte((address >> 8) & 0xFF);
+  (void)ssp2_lab__exchange_byte((address >> 0) & 0xFF);
+}
+
+uint8_t read_write__SPI(void) {
+
+  const uint32_t data_addr = 0x000000;
+  const uint8_t opcode_read_status_reg = 0x05;
+
+  // Initialize write enable
+  adesto_cs();
+  write_enable();
+  adesto_ds();
+
+  // Status check before write
+  adesto_cs();
+  const uint8_t status_reg_before_write = read_status_reg(opcode_read_status_reg);
+  fprintf(stderr, "Content of Status Register before Writing = 0x%x\n", status_reg_before_write);
+  adesto_ds();
+
+  // Initialise page and write data
+  adesto_cs();
+  page_program_init();
+  adesto_flash_send_address(data_addr);
+  const uint8_t data_write = write_data();
+  fprintf(stderr, "Data Written to Flash = 0x%x at address = 0x%lx\n", data_write, data_addr);
+  adesto_ds();
+
+  // Status check after write
+  adesto_cs();
+  const uint8_t status_reg_after_write = read_status_reg(opcode_read_status_reg);
+  fprintf(stderr, "Content Status Register after Writing = 0x%x\n", status_reg_after_write);
+  adesto_ds();
+
+  // Read Data from Flash
+  adesto_cs();
+  read_array();
+  adesto_flash_send_address(data_addr);
+  const uint8_t read_flash = ssp2_lab__exchange_byte(dummy_byte);
+  adesto_ds();
+
+  return read_flash;
+}
+
+void spi_task_extra(void *p) {
+  const uint32_t spi_clock_mhz = 1;
+  ssp2_lab__init(spi_clock_mhz);
+  configure__ssp2_lab_pin_functions();
+
+  while (1) {
+    const uint8_t data_read_flash = read_write__SPI();
+    fprintf(stderr, "Data Read from Flash = 0x%x\n\n", data_read_flash);
+    vTaskDelay(500);
+  }
+}
+
+/************************ END OF EXTRA  **************************/
