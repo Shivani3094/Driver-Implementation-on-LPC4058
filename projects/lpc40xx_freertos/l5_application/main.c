@@ -1,8 +1,8 @@
 #include <stdio.h>
 
-#define PART1
+//#define PART1
 //#define PART2
-//#define EXTRACREDIT
+#define EXTRACREDIT
 
 #include "FreeRTOS.h"
 #include "board_io.h"
@@ -37,12 +37,12 @@ static SemaphoreHandle_t spi_bus_mutex;
 
 /********** EXTRA CREDIT *************/
 void write_enable(void);
-uint8_t write_data(void);
+uint8_t write_data(uint8_t write_data);
 void page_program_init(void);
 void read_array(void);
 uint8_t read_status_reg(uint8_t opcode_read_status_reg);
 void adesto_flash_send_address(uint32_t address);
-uint8_t read_write__SPI(void);
+void read_write__SPI(void);
 void spi_task_extra(void *p);
 
 int main(void) {
@@ -257,13 +257,18 @@ void spi_id_verification_task(void *p) {
 
 const uint8_t dummy_byte = 0xBB;
 
+void erase_block(void) {
+  const uint8_t opcode_erase_block = 0x20;
+  ssp2_lab__exchange_byte(opcode_erase_block);
+}
+
 void write_enable(void) {
   const uint8_t opcode_write_enable = 0x06;
   ssp2_lab__exchange_byte(opcode_write_enable);
 }
 
-uint8_t write_data(void) {
-  const uint8_t write_data = 0x58;
+uint8_t write_data(uint8_t write_data) {
+  // const uint8_t write_data = 0x58;
   ssp2_lab__exchange_byte(write_data);
   return write_data;
 }
@@ -291,10 +296,25 @@ void adesto_flash_send_address(uint32_t address) {
   (void)ssp2_lab__exchange_byte((address >> 0) & 0xFF);
 }
 
-uint8_t read_write__SPI(void) {
+void read_write__SPI(void) {
 
   const uint32_t data_addr = 0x000000;
   const uint8_t opcode_read_status_reg = 0x05;
+  const uint8_t Data1 = 0x58;
+  const uint8_t Data2 = 0x85;
+
+  // Initialize write enable
+  adesto_cs();
+  write_enable();
+  adesto_ds();
+
+  // Erase Flash
+  adesto_cs();
+  erase_block();
+  adesto_flash_send_address(data_addr);
+  adesto_ds();
+  vTaskDelay(300);
+  fprintf(stderr, "Erasing Flash Complete.\n");
 
   // Initialize write enable
   adesto_cs();
@@ -303,32 +323,80 @@ uint8_t read_write__SPI(void) {
 
   // Status check before write
   adesto_cs();
-  const uint8_t status_reg_before_write = read_status_reg(opcode_read_status_reg);
-  fprintf(stderr, "Content of Status Register before Writing = 0x%x\n", status_reg_before_write);
+  const uint8_t status_reg_before_write1 = read_status_reg(opcode_read_status_reg);
+  fprintf(stderr, "Content of Status Register before Writing = 0x%x\n", status_reg_before_write1);
   adesto_ds();
 
   // Initialise page and write data
   adesto_cs();
   page_program_init();
   adesto_flash_send_address(data_addr);
-  const uint8_t data_write = write_data();
-  fprintf(stderr, "Data Written to Flash = 0x%x at address = 0x%lx\n", data_write, data_addr);
+  const uint8_t data_write1 = write_data(Data1);
+  fprintf(stderr, "First Data Written to Flash = 0x%x at address = 0x%lx\n", data_write1, data_addr);
   adesto_ds();
 
   // Status check after write
   adesto_cs();
-  const uint8_t status_reg_after_write = read_status_reg(opcode_read_status_reg);
-  fprintf(stderr, "Content Status Register after Writing = 0x%x\n", status_reg_after_write);
+  const uint8_t status_reg_after_write1 = read_status_reg(opcode_read_status_reg);
+  fprintf(stderr, "Content Status Register after Writing = 0x%x\n", status_reg_after_write1);
   adesto_ds();
 
-  // Read Data from Flash
+  // Read Data1 from Flash
   adesto_cs();
   read_array();
   adesto_flash_send_address(data_addr);
-  const uint8_t read_flash = ssp2_lab__exchange_byte(dummy_byte);
+  const uint8_t read_flash1 = ssp2_lab__exchange_byte(dummy_byte);
+  fprintf(stderr, "First Data Read from Flash = 0x%x\n", read_flash1);
   adesto_ds();
 
-  return read_flash;
+  // DATA 2
+
+  // Initialize write enable
+  adesto_cs();
+  write_enable();
+  adesto_ds();
+
+  // Erase Flash
+  adesto_cs();
+  erase_block();
+  adesto_flash_send_address(data_addr);
+  adesto_ds();
+  vTaskDelay(300);
+  fprintf(stderr, "Erasing Flash Complete.\n");
+
+  // Initialize write enable
+  adesto_cs();
+  write_enable();
+  adesto_ds();
+
+  // Status check before write
+  adesto_cs();
+  const uint8_t status_reg_before_write2 = read_status_reg(opcode_read_status_reg);
+  fprintf(stderr, "Content Status Register after Writing = 0x%x\n", status_reg_before_write2);
+  adesto_ds();
+
+  // Initialise page and write data2
+  adesto_cs();
+  page_program_init();
+  adesto_flash_send_address(data_addr);
+  const uint8_t data_write2 = write_data(Data2);
+  fprintf(stderr, "Second Data Written to Flash = 0x%x at address = 0x%lx\n", data_write2, data_addr);
+  adesto_ds();
+
+  // Status check after write
+  adesto_cs();
+  const uint8_t status_reg_after_write2 = read_status_reg(opcode_read_status_reg);
+  fprintf(stderr, "Content Status Register after Writing = 0x%x\n", status_reg_after_write2);
+  adesto_ds();
+
+  // Read Data2 from Flash
+  adesto_cs();
+  read_array();
+  adesto_flash_send_address(data_addr);
+  const uint8_t read_flash2 = ssp2_lab__exchange_byte(dummy_byte);
+  adesto_ds();
+  fprintf(stderr, "Second Data Read from Flash = 0x%x\n\n", read_flash2);
+  fprintf(stderr, "************Next Cycle***********\n\n");
 }
 
 void spi_task_extra(void *p) {
@@ -337,8 +405,7 @@ void spi_task_extra(void *p) {
   configure__ssp2_lab_pin_functions();
 
   while (1) {
-    const uint8_t data_read_flash = read_write__SPI();
-    fprintf(stderr, "Data Read from Flash = 0x%x\n\n", data_read_flash);
+    read_write__SPI();
     vTaskDelay(500);
   }
 }
