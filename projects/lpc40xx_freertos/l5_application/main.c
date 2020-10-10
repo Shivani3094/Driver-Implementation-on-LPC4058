@@ -1,25 +1,39 @@
 #include <stdio.h>
 
-#include "FreeRTOS.h"
-#include "task.h"
+// define PART1
 
+#include "FreeRTOS.h"
 #include "board_io.h"
 #include "common_macros.h"
 #include "gpio.h"
 #include "periodic_scheduler.h"
 #include "sj2_cli.h"
+#include "task.h"
+#include "uart_lab.h"
 
 static void create_blinky_tasks(void);
 static void create_uart_task(void);
 static void blink_task(void *params);
 static void uart_task(void *params);
 
+//****** PART 1 **********
+void uart_write_task(void *p);
+void uart_read_task(void *p);
+
 int main(void) {
-  create_blinky_tasks();
-  create_uart_task();
+
+  // TODO: Use uart_lab__init() function and initialize UART2 or UART3 (your choice)
+  // TODO: Pin Configure IO pins to perform UART2/UART3 function
+  uart_lab__init(UART_3, 96, 115200);
+
+  xTaskCreate(uart_read_task, "UART_Rx", 2048, NULL, PRIORITY_LOW, NULL);
+  xTaskCreate(uart_write_task, "UART_Tx", 2048, NULL, PRIORITY_LOW, NULL);
 
   puts("Starting RTOS");
   vTaskStartScheduler(); // This function never returns unless RTOS scheduler runs out of memory and fails
+
+  create_blinky_tasks();
+  create_uart_task();
 
   return 0;
 }
@@ -98,3 +112,29 @@ static void uart_task(void *params) {
     printf(" %lu ticks\n\n", (xTaskGetTickCount() - ticks));
   }
 }
+
+/***************************** PART 1 *******************************/
+// TODO: Use uart_lab__init() function and initialize UART2 or UART3 (your choice)
+// TODO: Pin Configure IO pins to perform UART2/UART3 function
+
+void uart_read_task(void *p) {
+  char read_byte;
+  while (1) {
+    // TODO: Use uart_lab__polled_get() function and printf the received value
+    read_byte = uart_lab__polled_get(UART_3);
+    vTaskDelay(2);
+    fprintf(stderr, "Byte read from UART = %c\n\n", read_byte);
+  }
+}
+
+void uart_write_task(void *p) {
+  const char write_byte = 'C';
+  while (1) {
+    uart_lab__polled_put(UART_3, write_byte);
+    // TODO: Use uart_lab__polled_put() function and send a value
+    vTaskDelay(2);
+    fprintf(stderr, "Byte to write into UART = %c\n", write_byte);
+  }
+}
+
+/***************************** END of PART 1 ****************************/
