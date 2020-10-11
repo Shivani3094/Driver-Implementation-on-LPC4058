@@ -1,6 +1,7 @@
 #include <stdio.h>
 
-// define PART1
+#define PART1
+// define PART2
 
 #include "FreeRTOS.h"
 #include "board_io.h"
@@ -20,15 +21,25 @@ static void uart_task(void *params);
 void uart_write_task(void *p);
 void uart_read_task(void *p);
 
+//***** PART 2
+void uart_write_task2(void *p);
+void uart_read_task2(void *p);
+
 int main(void) {
 
-  // TODO: Use uart_lab__init() function and initialize UART2 or UART3 (your choice)
-  // TODO: Pin Configure IO pins to perform UART2/UART3 function
+#ifdef PART1
+  uart_lab__init(UART_3, 96, 38400);
+  xTaskCreate(uart_read_task, "UART_Rx", 2048 / sizeof(void *), NULL, PRIORITY_LOW, NULL);
+  xTaskCreate(uart_write_task, "UART_Tx", 2048 / sizeof(void *), NULL, PRIORITY_LOW, NULL);
+#endif
+
+#ifdef PART2
   uart_lab__init(UART_3, 96, 115200);
+  uart__enable_receive_interrupt(UART_3);
 
-  xTaskCreate(uart_read_task, "UART_Rx", 2048, NULL, PRIORITY_LOW, NULL);
-  xTaskCreate(uart_write_task, "UART_Tx", 2048, NULL, PRIORITY_LOW, NULL);
-
+  xTaskCreate(uart_write_task2, "UART_Task", 2048 / sizeof(void *), NULL, PRIORITY_LOW, NULL);
+  xTaskCreate(uart_read_task2, "UART_Task", 2048 / sizeof(void *), NULL, PRIORITY_LOW, NULL);
+#endif
   puts("Starting RTOS");
   vTaskStartScheduler(); // This function never returns unless RTOS scheduler runs out of memory and fails
 
@@ -122,8 +133,8 @@ void uart_read_task(void *p) {
   while (1) {
     // TODO: Use uart_lab__polled_get() function and printf the received value
     read_byte = uart_lab__polled_get(UART_3);
-    vTaskDelay(2);
-    fprintf(stderr, "Byte read from UART = %c\n\n", read_byte);
+    printf("Byte read from UART = %c\n\n", read_byte);
+    vTaskDelay(100);
   }
 }
 
@@ -132,9 +143,30 @@ void uart_write_task(void *p) {
   while (1) {
     uart_lab__polled_put(UART_3, write_byte);
     // TODO: Use uart_lab__polled_put() function and send a value
-    vTaskDelay(2);
-    fprintf(stderr, "Byte to write into UART = %c\n", write_byte);
+    printf("Byte to write into UART = %c\n", write_byte);
+    vTaskDelay(100);
   }
 }
 
 /***************************** END of PART 1 ****************************/
+void uart_read_task2(void *p) {
+  char read_byte;
+  while (1) {
+    // TODO: Use uart_lab__polled_get() function and printf the received value
+    uart_lab__get_char_from_queue(&read_byte, 0);
+    printf("Byte read from UART = %c\n\n", read_byte);
+    vTaskDelay(100);
+  }
+}
+
+void uart_write_task2(void *p) {
+  const char write_byte = 'C';
+  while (1) {
+    uart_lab__polled_put(UART_3, write_byte);
+    // TODO: Use uart_lab__polled_put() function and send a value
+    printf("Byte to write into UART = %c\n", write_byte);
+    vTaskDelay(100);
+  }
+}
+
+/***************************** END of PART 2 ****************************/
