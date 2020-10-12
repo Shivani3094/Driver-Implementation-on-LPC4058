@@ -1,7 +1,7 @@
 #include <stdio.h>
 
-#define PART1
-// define PART2
+//#define PART1
+#define PART2
 
 #include "FreeRTOS.h"
 #include "board_io.h"
@@ -149,12 +149,15 @@ void uart_write_task(void *p) {
 }
 
 /***************************** END of PART 1 ****************************/
+
+/***************************** PART 2 *******************************/
 void uart_read_task2(void *p) {
   char read_byte;
   while (1) {
     // TODO: Use uart_lab__polled_get() function and printf the received value
-    uart_lab__get_char_from_queue(&read_byte, 0);
-    printf("Byte read from UART = %c\n\n", read_byte);
+    if (uart_lab__get_char_from_queue(&read_byte, 0))
+      // uart_lab__get_char_from_queue(&read_byte, 0);
+      printf("Byte read from UART = %c\n\n", read_byte);
     vTaskDelay(100);
   }
 }
