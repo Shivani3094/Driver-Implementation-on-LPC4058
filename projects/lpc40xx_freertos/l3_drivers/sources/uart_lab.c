@@ -22,6 +22,7 @@ const uint8_t Tx_Data_Ready = (1 << 5);
 const uint8_t word_length = 3;
 
 static QueueHandle_t uart_rx_queue;
+static QueueHandle_t uart2_rx_queue;
 
 void uart_lab__init(uart_number_e uart, uint32_t peripheral_clock, uint32_t baud_rate) {
   const uint16_t divider_16_bit = peripheral_clock * 1000 * 1000 / (16 * baud_rate);
@@ -38,6 +39,8 @@ void uart_lab__init(uart_number_e uart, uint32_t peripheral_clock, uint32_t baud
     LPC_UART2->LCR &= ~DLAB_reg;
 
     // Set pin as output
+    LPC_IOCON->P0_10 &= ~(0b111 << 0);
+    LPC_IOCON->P0_11 &= ~(0b111 << 0);
     LPC_IOCON->P0_10 |= set_U2_Tx;
     LPC_IOCON->P0_11 |= set_U2_Rx;
 
@@ -129,12 +132,11 @@ void check_Tx_status(uart_number_e uart) {
   }
 }
 
-static void receive_interrupt(void) {
+static void receive_interrupt_U3(void) {
+
   // Read the IIR register
   const uint32_t read_iir_reg = LPC_UART3->IIR;
   const uint32_t read_IIR_status = read_iir_reg & (1 << 0);
-
-  // const uint32_t read_ID = read_iir_reg & (2 << 1);
 
   const uint32_t rx_fifo_ready = LPC_UART3->LSR;
   const uint32_t rx_data_read_ready = rx_fifo_ready & (1 << 0);
@@ -154,19 +156,61 @@ static void receive_interrupt(void) {
   xQueueSendFromISR(uart_rx_queue, &byte, NULL);
 }
 
-void uart__enable_receive_interrupt(uart_number_e uart_number) {
+static void receive_interrupt_U2(void) {
+  const uint32_t read_iir_reg = LPC_UART2->IIR;
+  const uint32_t read_IIR_status = read_iir_reg & (1 << 0);
 
-  lpc_peripheral__enable_interrupt(LPC_PERIPHERAL__UART3, receive_interrupt, "UART3");
-  NVIC_EnableIRQ(UART3_IRQn);
+  const uint32_t rx_fifo_ready = LPC_UART2->LSR;
+  const uint32_t rx_data_read_ready = rx_fifo_ready & (1 << 0);
 
-  // Enable UART receive interrupt
-  const uint32_t Rx_Intr_Enable = (1 << 0);
-  LPC_UART3->IER |= (Rx_Intr_Enable);
-
-  // Create your RX queue
-  uart_rx_queue = xQueueCreate(1, sizeof(char));
+  char byte;
+  // Based on IIR status, read the LSR register to confirm if there is data to be read
+  if (!read_IIR_status) {
+    if (rx_data_read_ready) {
+      // Based on LSR status, read the RBR register and input the data to the RX Queue
+      byte = LPC_UART2->RBR;
+    } else {
+      fprintf(stderr, "Rx Not Ready\n");
+    }
+  } else {
+    fprintf(stderr, "Interrupt Not Pending\n");
+  }
+  xQueueSendFromISR(uart2_rx_queue, &byte, NULL);
 }
 
-bool uart_lab__get_char_from_queue(char *input_byte, uint32_t timeout) {
-  return xQueueReceive(uart_rx_queue, input_byte, timeout);
+void uart__enable_receive_interrupt(uart_number_e uart_number) {
+
+  if (uart_number == 1) {
+    lpc_peripheral__enable_interrupt(LPC_PERIPHERAL__UART3, receive_interrupt_U3, "UART3");
+    NVIC_EnableIRQ(UART3_IRQn);
+
+    // Enable UART receive interrupt
+    const uint32_t Rx_Intr_Enable = (1 << 0);
+    LPC_UART3->IER |= (Rx_Intr_Enable);
+
+    // Create your RX queue
+    uart_rx_queue = xQueueCreate(1, sizeof(char));
+  } else if (uart_number == 0) {
+    lpc_peripheral__enable_interrupt(LPC_PERIPHERAL__UART2, receive_interrupt_U2, "UART2");
+    NVIC_EnableIRQ(UART2_IRQn);
+
+    // Enable UART receive interrupt
+    const uint32_t Rx_Intr_Enable = (1 << 0);
+    LPC_UART2->IER |= (Rx_Intr_Enable);
+
+    // Create your RX queue
+    uart2_rx_queue = xQueueCreate(1, sizeof(char));
+  }
+}
+
+bool uart_lab__get_char_from_queue(uart_number_e uart_number, char *input_byte, uint32_t timeout) {
+
+  bool temp = 0;
+
+  if (uart_number == 1)
+    temp = xQueueReceive(uart_rx_queue, input_byte, timeout);
+  else if (uart_number == 0)
+    temp = xQueueReceive(uart2_rx_queue, input_byte, timeout);
+
+  return temp;
 }
