@@ -8,9 +8,6 @@
 #include "FreeRTOS.h"
 #include "queue.h"
 
-const uint32_t clock_U2 = (1 << 24);
-const uint32_t clock_U3 = (1 << 25);
-
 const uint32_t DLAB_reg = (1 << 7);
 
 const uint32_t set_U2_Tx = 0b001;
@@ -27,14 +24,11 @@ const uint8_t word_length = 3;
 static QueueHandle_t uart_rx_queue;
 
 void uart_lab__init(uart_number_e uart, uint32_t peripheral_clock, uint32_t baud_rate) {
-  // Refer to LPC User manual and setup the register bits correctly
-  // The first page of the UART chapter has good instructions
   const uint16_t divider_16_bit = peripheral_clock * 1000 * 1000 / (16 * baud_rate);
-  printf("Baud Rate = %luHz\n", baud_rate);
+  fprintf(stderr, "Baud Rate = %luHz\n", baud_rate);
 
   if (uart == 0) {
     // Power on Peripheral
-    // LPC_SC->PCONP |= clock_U2;
     lpc_peripheral__turn_on_power_to(LPC_PERIPHERAL__UART2);
 
     // Setup DLL, DLM, FDR, LCR registers
@@ -52,7 +46,6 @@ void uart_lab__init(uart_number_e uart, uint32_t peripheral_clock, uint32_t baud
 
   } else if (uart == 1) {
     // Power on Peripheral
-    // LPC_SC->PCONP |= clock_U3;
     lpc_peripheral__turn_on_power_to(LPC_PERIPHERAL__UART3);
 
     // Setup DLL, DLM, FDR, LCR registers
@@ -72,9 +65,8 @@ void uart_lab__init(uart_number_e uart, uint32_t peripheral_clock, uint32_t baud
   }
 }
 
-// Read the byte from RBR and actually save it to the pointer
+// Read the byte from RBR
 char uart_lab__polled_get(uart_number_e uart) {
-
   char output_byte = 0;
 
   if (uart == 0) {
@@ -93,14 +85,11 @@ char uart_lab__polled_get(uart_number_e uart) {
 }
 
 bool uart_lab__polled_put(uart_number_e uart, char output_byte) {
-  fprintf(stderr, "UART = %d\n\n", uart);
-
   bool status = false;
   // Copy output_byte to THR register
 
   // Check LSR for Transmit Hold Register Empty
   if (uart == 0) {
-    printf("UART2\n");
     check_Tx_status(uart);
     LPC_UART2->THR = output_byte;
     status = true;
@@ -108,17 +97,10 @@ bool uart_lab__polled_put(uart_number_e uart, char output_byte) {
   }
 
   else if (uart == 1) {
-    fprintf(stderr, "UART3\n");
     check_Tx_status(uart);
-    fprintf(stderr, "OUTPUT BYTE = %c.\n\n", output_byte);
-    fprintf(stderr, "DLAB = %x\n\n", LPC_UART3->LCR);
-
     LPC_UART3->THR = output_byte;
-    fprintf(stderr, "After THR.\n\n");
     status = true;
-    // check_Tx_status(uart);
   }
-  printf("Before return\n");
   return status;
 }
 
@@ -135,7 +117,6 @@ void check_Rx_status(uart_number_e uart) {
 }
 
 void check_Tx_status(uart_number_e uart) {
-  fprintf(stderr, "Inside Tx Status\n\n");
   if (uart == 0) {
     while (!(LPC_UART2->LSR & Tx_Data_Ready)) {
       // Keep Looping until its not empty;
@@ -146,63 +127,46 @@ void check_Tx_status(uart_number_e uart) {
       // Keep Looping until its not empty;
     }
   }
-  fprintf(stderr, "Outside While Loop\n\n");
 }
 
-/*******************************/
-// Private function of our uart_lab.c
 static void receive_interrupt(void) {
-  // TODO: Read the IIR register to figure out why you got interrupted
-  // INTSTATUS bit 0 (0 << 0) At least one interrupt is pending
+  // Read the IIR register
   const uint32_t read_iir_reg = LPC_UART3->IIR;
-  // const uint8_t read_IIR_status = read_iir_reg & (1 << 0);
-  const uint32_t read_IIR_status = read_iir_reg & (0 << 0);
+  const uint32_t read_IIR_status = read_iir_reg & (1 << 0);
 
-  const uint32_t read_ID = read_iir_reg & (2 << 1);
+  // const uint32_t read_ID = read_iir_reg & (2 << 1);
 
   const uint32_t rx_fifo_ready = LPC_UART3->LSR;
   const uint32_t rx_data_read_ready = rx_fifo_ready & (1 << 0);
 
   char byte;
-  // TODO: Based on IIR status, read the LSR register to confirm if there is data to be read
-  if (read_IIR_status) {
-    if (read_ID) {
-
-      if (rx_data_read_ready) {
-        // TODO: Based on LSR status, read the RBR register and input the data to the RX Queue
-        byte = LPC_UART3->RBR;
-        printf("CHARACTER = %c\n", byte);
-
-      } else {
-        printf("Rx Not Ready\n");
-      }
+  // Based on IIR status, read the LSR register to confirm if there is data to be read
+  if (!read_IIR_status) {
+    if (rx_data_read_ready) {
+      // Based on LSR status, read the RBR register and input the data to the RX Queue
+      byte = LPC_UART3->RBR;
+    } else {
+      fprintf(stderr, "Rx Not Ready\n");
     }
   } else {
-    printf("Interrupt Not Pending\n");
+    fprintf(stderr, "Interrupt Not Pending\n");
   }
   xQueueSendFromISR(uart_rx_queue, &byte, NULL);
 }
 
-// Public function to enable UART interrupt
-// TODO Declare this at the header file
 void uart__enable_receive_interrupt(uart_number_e uart_number) {
-  // TODO: Use lpc_peripherals.h to attach your interrupt
 
   lpc_peripheral__enable_interrupt(LPC_PERIPHERAL__UART3, receive_interrupt, "UART3");
-  // NVIC_EnableIRQ(UART3_IRQn);
+  NVIC_EnableIRQ(UART3_IRQn);
 
-  // TODO: Enable UART receive interrupt by reading the LPC User manual
-  // Hint: Read about the IER register
+  // Enable UART receive interrupt
   const uint32_t Rx_Intr_Enable = (1 << 0);
-  // LPC_UART3->LCR &= ~DLAB_reg;
   LPC_UART3->IER |= (Rx_Intr_Enable);
 
-  // TODO: Create your RX queue
+  // Create your RX queue
   uart_rx_queue = xQueueCreate(1, sizeof(char));
 }
 
-// Public function to get a char from the queue (this function should work without modification)
-// TODO: Declare this at the header file
 bool uart_lab__get_char_from_queue(char *input_byte, uint32_t timeout) {
   return xQueueReceive(uart_rx_queue, input_byte, timeout);
 }
