@@ -66,14 +66,17 @@ switch_e get_switch_input_from_switch0(void) {
   const uint32_t set_switch_as_input = ~(1 << 15);
   LPC_GPIO1->DIR &= set_switch_as_input;
 
-  gpio_s switch0 = {1, 15};
-  switch_e switch_status;
+  uint32_t bit_mask = (1 << 15);
+  uint32_t check_switch_status = (LPC_GPIO1->PIN) & (bit_mask);
+  
+  bool switch_status;
 
-  if (gpio__get(switch0)) {
+  if (check_switch_status) {
     switch_status = switch__on;
   } else {
     switch_status = switch__off;
   }
+
   return switch_status;
 }
 
@@ -95,7 +98,7 @@ void consumer(void *p) {
   switch_e switch_value;
   while (1) {
     printf("consumer() receiving message\n");
-    xQueueReceive(switch_queue, &switch_value, 0);
+    xQueueReceive(switch_queue, &switch_value, portMAX_DELAY);
     printf("Received from Queue: %d \n\n", switch_value);
   }
 }
