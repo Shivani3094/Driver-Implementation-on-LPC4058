@@ -33,27 +33,27 @@ int main(void) {
 
   switch (priority) {
   case 0: {
-    printf("*** PRODUCER HAS HIGHER PRIORITY ***\n\n");
+    fprintf(stderr, "\n*** PRODUCER HAS HIGHER PRIORITY ***\n\n");
     xTaskCreate(producer, "tx", 2048 / (sizeof(void *)), NULL, PRIORITY_HIGH, NULL);
     xTaskCreate(consumer, "rx", 2048 / (sizeof(void *)), NULL, PRIORITY_LOW, NULL);
     break;
   }
 
   case 1: {
-    printf("*** CONSUMER HAS HIGHER PRIORITY ***\n\n");
+    fprintf(stderr, "\n*** CONSUMER HAS HIGHER PRIORITY ***\n\n");
     xTaskCreate(producer, "tx", 2048 / (sizeof(void *)), NULL, PRIORITY_LOW, NULL);
     xTaskCreate(consumer, "rx", 2048 / (sizeof(void *)), NULL, PRIORITY_HIGH, NULL);
     break;
   }
 
   case 2: {
-    printf("*** EQUAL PRIORITY ***\n\n");
+    fprintf(stderr, "\n*** EQUAL PRIORITY ***\n\n");
     xTaskCreate(producer, "tx", 2048 / (sizeof(void *)), NULL, PRIORITY_LOW, NULL);
     xTaskCreate(consumer, "rx", 2048 / (sizeof(void *)), NULL, PRIORITY_LOW, NULL);
     break;
   }
   default:
-    printf("INVALID INPUT");
+    fprintf(stderr, "INVALID INPUT");
   }
 #endif
 
@@ -68,7 +68,7 @@ switch_e get_switch_input_from_switch0(void) {
 
   uint32_t bit_mask = (1 << 15);
   uint32_t check_switch_status = (LPC_GPIO1->PIN) & (bit_mask);
-  
+
   bool switch_status;
 
   if (check_switch_status) {
@@ -84,11 +84,11 @@ void producer(void *p) {
   while (1) {
     const switch_e switch_value = get_switch_input_from_switch0();
 
-    printf(" producer() sending message\n");
+    fprintf(stderr, " producer() sending message\n");
     if (!(xQueueSend(switch_queue, &switch_value, 0))) {
-      printf("Failed to send to consumer\n");
+      fprintf(stderr, "Failed to send to consumer\n");
     } else {
-      printf("Successfully sent\n");
+      fprintf(stderr, "Successfully sent\n");
     }
     vTaskDelay(1000);
   }
@@ -97,8 +97,8 @@ void producer(void *p) {
 void consumer(void *p) {
   switch_e switch_value;
   while (1) {
-    printf("consumer() receiving message\n");
+    fprintf(stderr, "consumer() receiving message\n");
     xQueueReceive(switch_queue, &switch_value, portMAX_DELAY);
-    printf("Received from Queue: %d \n\n", switch_value);
+    fprintf(stderr, "Received from Queue: %d \n", switch_value);
   }
 }
