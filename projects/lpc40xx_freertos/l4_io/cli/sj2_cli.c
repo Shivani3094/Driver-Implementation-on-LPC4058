@@ -34,7 +34,14 @@ void sj2_cli__init(void) {
                                              "tasklist <time>' will display CPU utilization within this time window.",
                                          .app_cli_handler = cli__task_list};
 
+  // ADDED
+  static app_cli__command_s task_control = {.command_name = "taskcontrol",
+                                            .help_message_for_command = "taskcontrol suspend <name of the task>\n"
+                                                                        "taskcontrol resume <name of the task>\n",
+                                            .app_cli_handler = cli__task_control};
+
   // Add your CLI commands in descending sorted order
+  app_cli__add_command_handler(&sj2_cli_struct, &task_control);
   app_cli__add_command_handler(&sj2_cli_struct, &task_list);
   app_cli__add_command_handler(&sj2_cli_struct, &i2c);
   app_cli__add_command_handler(&sj2_cli_struct, &crash);

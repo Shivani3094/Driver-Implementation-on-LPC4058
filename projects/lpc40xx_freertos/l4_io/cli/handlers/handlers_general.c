@@ -72,3 +72,42 @@ static void cli__task_list_print(sl_string_t output_string, app_cli__print_strin
   cli_output(unused_cli_param, "configUSE_TRACE_FACILITY macro at FreeRTOSConfig.h must be non-zero\n");
 #endif
 }
+
+/*************************************** ADDED ****************************************************************/
+// If the user types 'taskcontrol suspend led0' then we need to suspend a task with the name of 'led0'
+// In this case, the user_input_minus_command_name will be set to 'suspend led0' with the command-name removed
+
+app_cli_status_e cli__task_control(app_cli__argument_t argument, sl_string_t user_input_minus_command_name,
+                                   app_cli__print_string_function cli_output) {
+  sl_string_t s = user_input_minus_command_name;
+  TaskHandle_t task_handle = xTaskGetHandle(s);
+
+  if (sl_string__begins_with_ignore_case(s, "suspend")) {
+    // Use sl_string API to remove the first word, such that variable 's' will equal to 'led0'
+    sl_string__erase_first_word(s, ' ');
+
+    task_handle = xTaskGetHandle(s);
+    if (NULL == task_handle) {
+      sl_string__insert_at(s, (int)NULL, "Could not find a task with name: ");
+      cli_output(NULL, s);
+    } else {
+      vTaskSuspend(task_handle);
+    }
+
+  } else if (sl_string__begins_with_ignore_case(s, "resume")) {
+    // Use sl_string API to remove the first word, such that variable 's' will equal to 'led0'
+    sl_string__erase_first_word(s, ' ');
+
+    task_handle = xTaskGetHandle(s);
+    if (NULL == task_handle) {
+      sl_string__insert_at(s, (int)NULL, "Could not find a task with name: ");
+      cli_output(NULL, s);
+    } else {
+      vTaskResume(task_handle);
+    }
+  } else {
+    cli_output(NULL, "Did you mean to say suspend or resume?\n");
+  }
+
+  return APP_CLI_STATUS__SUCCESS;
+}

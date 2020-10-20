@@ -1,6 +1,6 @@
 #include <stdio.h>
 
-#define PART1
+#define EXTRACREDIT
 
 #include "FreeRTOS.h"
 #include "board_io.h"
@@ -25,11 +25,10 @@ switch_e get_switch_input_from_switch0(void);
 
 int main(void) {
 
-#ifdef PART1
   switch_queue =
       xQueueCreate(1, sizeof(switch_e)); // Choose depth of item being our enum (1 should be okay for this example)
 
-  set_priority priority = EQUAL_PRIORITY;
+  set_priority priority = PRODUCER_HIGH;
 
   switch (priority) {
   case 0: {
@@ -55,6 +54,9 @@ int main(void) {
   default:
     fprintf(stderr, "INVALID INPUT");
   }
+
+#ifdef EXTRACREDIT
+  sj2_cli__init();
 #endif
 
   vTaskStartScheduler();
