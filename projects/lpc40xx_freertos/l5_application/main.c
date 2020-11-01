@@ -12,9 +12,9 @@
 
 int main(void) {
 
-  #ifdef PART1
+#ifdef PART1
   sj2_cli__init();
-  #endif
+#endif
 
   puts("Starting RTOS");
   vTaskStartScheduler(); // This function never returns unless RTOS scheduler runs out of memory and fails
