@@ -38,7 +38,6 @@ int main(void) {
 #endif
 
 #ifdef PART3
-  sj2_cli__init();
   i2c2__slave_init(0x14);
   xTaskCreate(led_task, "LED_TASK", 2048 / sizeof(void *), NULL, PRIORITY_LOW, NULL);
 
@@ -81,7 +80,6 @@ void turn_off_an_led(void) {
 }
 
 bool i2c_slave_callback__read_memory(uint8_t memory_index, uint8_t *memory) {
-  // TODO: Read the data from slave_memory[memory_index] to *memory pointer
   bool read_status;
 
   if (memory_index < max_memory_index) {
@@ -90,20 +88,16 @@ bool i2c_slave_callback__read_memory(uint8_t memory_index, uint8_t *memory) {
   } else {
     read_status = false;
   }
-  // TODO: return true if all is well (memory index is within bounds)
   return read_status;
 }
 
 bool i2c_slave_callback__write_memory(uint8_t memory_index, uint8_t memory_value) {
   bool write_status;
-  // TODO: Write the memory_value at slave_memory[memory_index]
   if (memory_index < max_memory_index) {
     slave_memory[memory_index = memory_value];
     write_status = true;
   } else {
     write_status = false;
   }
-
-  // TODO: return true if memory_index is within bounds
   return write_status;
 }

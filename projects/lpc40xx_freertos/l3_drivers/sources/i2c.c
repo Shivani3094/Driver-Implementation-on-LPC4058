@@ -47,11 +47,9 @@ typedef struct {
   size_t number_of_bytes_to_transfer;
 
   /******** SLAVE MODE ***************/
-  bool SR__Data_Reg_Addr_check;                         // Check whether received data is register value or data byte
-  uint8_t SR_data_byte_received_from_master;            // Saving Data byte
-  uint8_t *SR_Data_Reg_Addr_Rx_from_Master;             // Saving data register address
-  uint8_t ST_Byte_from_slave_to_master_to_write_in_reg; // Data byte which needs to be transmitted to master from slave
-  int32_t SR_address_offset;                            // offset used when writing to next address
+  bool SR__Data_Reg_Addr_check;     // Check whether received data is register value or data byte
+  uint8_t ST_data_read_from_memory; // Store the data read when slave is transmitting
+
 } i2c_s;
 
 /// Instances of structs for each I2C peripheral
@@ -287,7 +285,6 @@ static bool i2c__handle_state_machine(i2c_s *i2c) {
     I2C__STATE_ST_SLAVE_ADDR_ACK = 0xA8,
     I2C__STATE_ST_MASTER_DATA_ACK = 0xB8,
     I2C__STATE_ST_MASTER_DATA_NACK = 0xC0,
-    I2C__STATE_ST_MASTER_LAST_DATA_ACK = 0xC8,
 
     // SLAVE Receiver States (SR):
     I2C__STATE_SR_SLAVE_WRITE_ACK = 0x60,
@@ -402,71 +399,72 @@ static bool i2c__handle_state_machine(i2c_s *i2c) {
     break;
 
   /****************************** SLAVE STATE MACHINES ***************************************/
-  /************* 0xA8 ***************/
-  case I2C__STATE_ST_SLAVE_ADDR_ACK:
-    i2c_slave_callback__read_memory((*(i2c->SR_Data_Reg_Addr_Rx_from_Master)),
-                                    &(i2c->ST_Byte_from_slave_to_master_to_write_in_reg));
-
-    // Write the data while transmission from Slave to master
-    lpc_i2c->DAT = i2c->ST_Byte_from_slave_to_master_to_write_in_reg;
+  case 0xA8:
+    i2c__clear_start_flag(lpc_i2c);
+    // Load I2DAT from Slave Transmit buffer with first data byte.
+    i2c_slave_callback__read_memory(i2c->slave_address, &i2c->ST_data_read_from_memory);
+    // Set up Slave Transmit mode data buffer.
+    lpc_i2c->DAT = i2c->ST_data_read_from_memory;
+    // Increment Slave Transmit buffer pointer.
+    (i2c->slave_address)++;
+    // Write 0x04 to I2CONSET to set the AA bit.
     i2c__set_ack_flag(lpc_i2c);
+    // Write 0x08 to I2CONCLR to clear the SI flag.
     i2c__clear_si_flag_for_hw_to_take_next_action(lpc_i2c);
     break;
 
-  /************* 0xB8 ***************/
-  case I2C__STATE_ST_MASTER_DATA_ACK:
-    i2c_slave_callback__read_memory((*(i2c->SR_Data_Reg_Addr_Rx_from_Master)),
-                                    &(i2c->ST_Byte_from_slave_to_master_to_write_in_reg));
-
-    // if (((*(i2c->SR_Data_Reg_Addr_Rx_from_Master)) + i2c->SR_address_offset) < max_memory_index) {
-    // Write the data at every next location of the register address given by master
-    lpc_i2c->DAT = i2c->ST_Byte_from_slave_to_master_to_write_in_reg;
-    ++(i2c->SR_Data_Reg_Addr_Rx_from_Master);
-    //}
+  case 0xB8:
+    // Read value from location and increment memory address
+    i2c_slave_callback__read_memory(i2c->slave_address++, &i2c->ST_data_read_from_memory);
+    // Load I2DAT from Slave Transmit buffer with data byte.
+    lpc_i2c->DAT = i2c->ST_data_read_from_memory;
+    // Write 0x04 to I2CONSET to set the AA bit.
     i2c__set_ack_flag(lpc_i2c);
-    i2c__clear_si_flag_for_hw_to_take_next_action(lpc_i2c);
-    break;
-  /************* 0xC0 ***************/
-  case I2C__STATE_ST_MASTER_DATA_NACK:
-    i2c__set_ack_flag(lpc_i2c);   // To set AA bit
-    i2c__set_start_flag(lpc_i2c); // Incase of Repeated Start
+    // Write 0x08 to I2CONCLR to clear the SI flag.
     i2c__clear_si_flag_for_hw_to_take_next_action(lpc_i2c);
     break;
 
-  /************* 0x60 ***************/
-  case I2C__STATE_SR_SLAVE_WRITE_ACK:
-    // Set this to true to verify in next SM if the data received is data byte or register address
+  case 0xC0:
+    i2c__clear_start_flag(lpc_i2c);
+    // Write 0x04 to I2CONSET to set the AA bit.
+    i2c__set_ack_flag(lpc_i2c);
+    // Write 0x08 to I2CONCLR to clear the SI flag.
+    i2c__clear_si_flag_for_hw_to_take_next_action(lpc_i2c);
+    break;
+
+  case 0x60:
+    i2c__clear_start_flag(lpc_i2c);
+    // Set up Slave Receive mode data buffer.
+    i2c->slave_address = lpc_i2c->DAT;
+    // Initialize Slave data counter
     i2c->SR__Data_Reg_Addr_check = true;
+    // Write 0x04 to I2CONSET to set the AA bit.
     i2c__set_ack_flag(lpc_i2c);
+    // Write 0x08 to I2CONCLR to clear the SI flag.
     i2c__clear_si_flag_for_hw_to_take_next_action(lpc_i2c);
     break;
 
-  /************* 0x80 ***************/
-  case I2C__STATE_SR_SLAVE_READ_ACK:
-    // Copy the data received from the master and use it further to verify if the data is register address or data byte.
-    i2c->SR_data_byte_received_from_master = lpc_i2c->DAT;
-
-    if (i2c->SR__Data_Reg_Addr_check)
-
-    {
-      // Save the received value as register value
+  case 0x80:
+    // Read data byte from I2DAT into the Slave Receive buffer.
+    if (i2c->SR__Data_Reg_Addr_check) {
+      i2c->slave_address = lpc_i2c->DAT;
       i2c->SR__Data_Reg_Addr_check = false;
-      *(i2c->SR_Data_Reg_Addr_Rx_from_Master) = i2c->SR_data_byte_received_from_master;
     } else {
-      // Write the data at the given register address
-      i2c_slave_callback__write_memory((*(i2c->SR_Data_Reg_Addr_Rx_from_Master)),
-                                       i2c->SR_data_byte_received_from_master);
-      ++(i2c->SR_Data_Reg_Addr_Rx_from_Master);
+      // Increment Slave Receive buffer pointer.
+      i2c_slave_callback__write_memory(i2c->slave_address, lpc_i2c->DAT);
+      (i2c->slave_address)++;
     }
-
+    // Write 0x04 to I2CONSET to set the AA bit.
     i2c__set_ack_flag(lpc_i2c);
+    // Write 0x08 to I2CONCLR to clear the SI flag.
     i2c__clear_si_flag_for_hw_to_take_next_action(lpc_i2c);
     break;
 
-  /************* 0xA0 ***************/
-  case I2C__STATE_SR_SLAVE_STOP_BIT_DETECTED:
-    i2c__set_ack_flag(lpc_i2c);   // To set AA bit
-    i2c__set_start_flag(lpc_i2c); // Incase of Repeated Start
+  case 0xA0:
+    // Write 0x04 to I2CONSET to set the AA bit.
+    i2c__set_ack_flag(lpc_i2c);
+    i2c__clear_start_flag(lpc_i2c);
+    // Write 0x08 to I2CONCLR to clear the SI flag.
     i2c__clear_si_flag_for_hw_to_take_next_action(lpc_i2c);
     break;
 
