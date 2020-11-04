@@ -15,16 +15,22 @@
 #include "periodic_scheduler.h"
 #include "sj2_cli.h"
 
-void turn_on_an_led(void);
-void turn_off_an_led(void);
+void led_on(void);
+void led_off(void);
+void led_init(void);
 static volatile uint8_t slave_memory[max_memory_index];
+gpio_s led0 = {1, 18};
+gpio_s led2 = {1, 24};
+gpio_s led3 = {1, 26};
+gpio_s led1 = {2, 3};
 
 static void led_task(void *p) {
+  uint8_t memory_index = 0;
   while (1) {
-    if (slave_memory[0] == 0) {
-      turn_on_an_led();
+    if (slave_memory[memory_index] == 0) {
+      led_off();
     } else {
-      turn_off_an_led();
+      led_on();
     }
     vTaskDelay(200);
   }
@@ -48,8 +54,7 @@ int main(void) {
   return 0;
 }
 
-void turn_on_an_led(void) {
-  const uint32_t led = (1U << 24);
+void led_init(void) {
 
   // Set the IOCON MUX function select pins to 000
   LPC_IOCON->P1_18 = 0x000;
@@ -58,25 +63,29 @@ void turn_on_an_led(void) {
   LPC_IOCON->P2_3 = 0x000;
 
   // Set the DIR register bit for the LED port pin
-  LPC_GPIO1->DIR |= led;
-  // Set PIN register bit to 1 to turn OFF LED
-  LPC_GPIO1->CLR = led;
+  LPC_GPIO1->DIR |= (1 << 18);
+  LPC_GPIO1->DIR |= (1 << 24);
+  LPC_GPIO1->DIR |= (1 << 26);
+  LPC_GPIO2->DIR |= (1 << 3);
+}
+void led_off(void) {
+  led_init();
+  gpio__set(led0);
+  gpio__set(led1);
+  gpio__set(led2);
+  gpio__set(led3);
 }
 
-void turn_off_an_led(void) {
-  const uint32_t led = (1U << 24);
-
-  // Set the IOCON MUX function select pins to 000
-  LPC_IOCON->P1_18 = 0x000;
-  LPC_IOCON->P1_24 = 0x000;
-  LPC_IOCON->P1_26 = 0x000;
-  LPC_IOCON->P2_3 = 0x000;
-
-  // Set the DIR register bit for the LED port pin
-  LPC_GPIO1->DIR |= led;
-
-  // Set PIN register bit to 0 to turn ON LED (led may be active low)
-  LPC_GPIO1->SET = led;
+void led_on(void) {
+  led_init();
+  gpio__toggle(led0);
+  vTaskDelay(200);
+  gpio__toggle(led1);
+  vTaskDelay(200);
+  gpio__toggle(led2);
+  vTaskDelay(200);
+  gpio__toggle(led3);
+  vTaskDelay(200);
 }
 
 bool i2c_slave_callback__read_memory(uint8_t memory_index, uint8_t *memory) {
